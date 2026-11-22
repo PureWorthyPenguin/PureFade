@@ -319,18 +319,19 @@ function ns.BuildDefaultGeneral()
 		combatFadeOutDelay = 10, -- seconds visible after combat ends
 		chatPeekDuration = 8,    -- seconds active chat tab stays visible on new message
 		buffPeekDuration = 5,    -- seconds buffs stay visible when a buff changes
-		questPeekDuration = 8,   -- seconds quest tracker stays visible on quest progress/change
-		minimapPingDuration = 8, -- seconds minimap stays visible on ping
+		questPeekDuration = 6,   -- seconds quest tracker stays visible on quest progress/change
+		minimapPingDuration = 5, -- seconds minimap stays visible on ping
 		healthThreshold = 100,   -- % below which Health Not Full triggers (100 = any missing HP)
 		powerThreshold = 100,    -- % below which Power Not Full triggers (100 = any missing power)
 		buffExpiringThreshold = 90, -- seconds remaining below which Short / Expiring Buff triggers (90 = 1m 30s)
 		-- QoL Interaction triggers
 		qolSpellbook = true,     -- Spellbook / Macros open -> Action Bars
 		qolDrag = true,          -- Dragging item/spell -> Action Bars & Bags
-		qolBagsOpen = true,      -- Bags open -> Bags Bar
+		qolBagsOpen = false,     -- Bags open -> Bags Bar
 		qolChatTyping = true,    -- Typing in chat -> Full Chat (Messages + Tabs + Buttons)
 		chatPeekLinesOnly = true,-- Chat Peek shows only newly arrived lines (overlay)
 		buffPeekOnlyNew = true,  -- Buff Peek shows only newly gained/refreshed buff icons in-place
+		fadeWhenDead = true,     -- Suppress automatic triggers while dead/ghost (hover & chat peeks still work)
 	}
 end
 

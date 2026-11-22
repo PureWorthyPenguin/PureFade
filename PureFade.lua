@@ -152,9 +152,21 @@ function ns.IsReadOnlyProfile()
 	return activeProfileName == "Default"
 end
 
-function ns.CreateEditableCopyFromDefault()
-	local name = NextAvailableProfileName("Custom")
-	return ns.CreateProfile(name, true)
+-- Auto-fork "Default" into "Custom" on the first edit (overwriting any previous "Custom"
+-- with a fresh copy starting from Default). Promotes the live table object so existing UI
+-- closures immediately mutate "Custom", while "Default" gets a brand-new pristine table.
+function ns.EnsureEditableProfile()
+	if activeProfileName ~= "Default" then
+		return activeDB, false
+	end
+	local promoted = activeDB
+	PureFadeDB.profiles["Default"] = ns.BuildDefaultProfile()
+	PureFadeDB.profiles["Custom"] = promoted
+	activeProfileName = "Custom"
+	PureFadeDB.profileKeys[GetCharKey()] = "Custom"
+	activeDB = promoted
+	print("|cff66ccffPureFade:|r Switched to '|cffffff00Custom|r' profile (Default stays unchanged).")
+	return activeDB, true
 end
 
 function ns.GetProfileNames()
@@ -200,15 +212,18 @@ function ns.CreateProfile(name, copyCurrent)
 	return ns.SetProfile(name)
 end
 
-function ns.RenameCurrentProfile(newName)
-	if activeProfileName == "Default" or not newName or newName == "" or newName == "Default" then
+function ns.RenameProfile(oldName, newName)
+	newName = strtrim(newName or "")
+	if not oldName or oldName == "Default" or newName == "" or newName == "Default" or newName == oldName then
+		return false
+	end
+	if not PureFadeDB.profiles[oldName] then
 		return false
 	end
 	if PureFadeDB.profiles[newName] then
 		print("|cff66ccffPureFade:|r Profile '" .. newName .. "' already exists.")
 		return false
 	end
-	local oldName = activeProfileName
 	PureFadeDB.profiles[newName] = PureFadeDB.profiles[oldName]
 	PureFadeDB.profiles[oldName] = nil
 	for k, v in pairs(PureFadeDB.profileKeys) do
@@ -216,25 +231,37 @@ function ns.RenameCurrentProfile(newName)
 			PureFadeDB.profileKeys[k] = newName
 		end
 	end
-	activeProfileName = newName
-	activeDB = PureFadeDB.profiles[newName]
+	if activeProfileName == oldName then
+		activeProfileName = newName
+		activeDB = PureFadeDB.profiles[newName]
+	end
 	print("|cff66ccffPureFade:|r Renamed profile '" .. oldName .. "' to '" .. newName .. "'.")
 	return true
 end
 
-function ns.DeleteCurrentProfile()
-	if activeProfileName == "Default" then
+function ns.RenameCurrentProfile(newName)
+	return ns.RenameProfile(activeProfileName, newName)
+end
+
+function ns.DeleteProfile(targetName)
+	if not targetName or targetName == "Default" or not PureFadeDB.profiles[targetName] then
 		return false
 	end
-	local oldName = activeProfileName
-	PureFadeDB.profiles[oldName] = nil
+	PureFadeDB.profiles[targetName] = nil
 	for k, v in pairs(PureFadeDB.profileKeys) do
-		if v == oldName then
+		if v == targetName then
 			PureFadeDB.profileKeys[k] = "Default"
 		end
 	end
-	print("|cff66ccffPureFade:|r Deleted profile '" .. oldName .. "'.")
-	return ns.SetProfile("Default")
+	print("|cff66ccffPureFade:|r Deleted profile '" .. targetName .. "'.")
+	if activeProfileName == targetName then
+		return ns.SetProfile("Default")
+	end
+	return true
+end
+
+function ns.DeleteCurrentProfile()
+	return ns.DeleteProfile(activeProfileName)
 end
 
 -- Per-page Reset to Defaults (blocked on read-only Default profile)
@@ -387,6 +414,22 @@ function ns.ExportProfile()
 	return "PF1:" .. B64Encode(table.concat(out))
 end
 
+function ns.ValidateImportString(encoded)
+	encoded = strtrim(encoded or "")
+	if encoded:sub(1, 4) ~= "PF1:" then
+		return false, "Invalid profile string (must start with PF1:)."
+	end
+	local raw = B64Decode(encoded:sub(5))
+	if not raw then
+		return false, "Could not decode profile string (corrupted or incomplete)."
+	end
+	local parsed, endPos = DeserializeVal(raw, 1, 0)
+	if type(parsed) ~= "table" or endPos <= 1 then
+		return false, "Profile data is invalid or corrupted."
+	end
+	return true
+end
+
 function ns.ImportProfile(encoded, requestedName)
 	encoded = strtrim(encoded or "")
 	if encoded:sub(1, 4) ~= "PF1:" then
@@ -412,19 +455,19 @@ function ns.ImportProfile(encoded, requestedName)
 	return true, finalName
 end
 
--- Addon Compartment callbacks (Left-Click: Settings, Right-Click: Pause/Resume)
+-- Addon Compartment callbacks (Left-Click: Pause/Resume, Right-Click: Settings)
 function PureFade_OnAddonCompartmentClick(_, buttonName)
 	if buttonName == "RightButton" then
+		ns.OpenSettings()
+	else
 		local newState = not ns.IsPaused()
 		ns.SetPaused(newState)
 		if newState then
-			print("|cff66ccffPureFade:|r Paused (UI restored to 100%). Right-click again or type |cffffff00/purefade toggle|r to resume.")
+			print("|cff66ccffPureFade:|r Paused (UI restored to 100%). Left-click again or type |cffffff00/purefade toggle|r to resume.")
 		else
 			print("|cff66ccffPureFade:|r Resumed.")
 			ns.ForceRefresh()
 		end
-	else
-		ns.OpenSettings()
 	end
 end
 
@@ -433,8 +476,8 @@ function PureFade_OnAddonCompartmentEnter(_, menuButtonFrame)
 	GameTooltip:SetText("PureFade", 1, 0.82, 0)
 	local status = ns.IsPaused() and "|cffff6666Paused|r" or (ns.GetDB() and ns.GetDB().enabled and "|cff66ff66Active|r" or "|cffff6666Disabled|r")
 	GameTooltip:AddLine("Status: " .. status, 1, 1, 1)
-	GameTooltip:AddLine("Left-Click: Open Settings", 0.8, 0.8, 0.8)
-	GameTooltip:AddLine("Right-Click: Pause / Resume", 0.8, 0.8, 0.8)
+	GameTooltip:AddLine("Left-Click: Pause / Resume", 0.8, 0.8, 0.8)
+	GameTooltip:AddLine("Right-Click: Open Settings", 0.8, 0.8, 0.8)
 	GameTooltip:Show()
 end
 

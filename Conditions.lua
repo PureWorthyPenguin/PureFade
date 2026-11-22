@@ -249,7 +249,7 @@ eventFrame:SetScript("OnEvent", function(_, event, unit, arg2)
 			state.combatHoldUntil = now + delay
 		end
 	elseif event == "MINIMAP_PING" then
-		local dur = db and db.minimapPingDuration or 8
+		local dur = db and db.minimapPingDuration or 5
 		if dur > 0 then
 			state.minimapPingUntil = now + dur
 		end
@@ -266,7 +266,7 @@ eventFrame:SetScript("OnEvent", function(_, event, unit, arg2)
 		or event == "QUEST_TURNED_IN" or event == "QUEST_WATCH_LIST_CHANGED" then
 		CheckQuestSnapshotChanged()
 		if now >= state.questReadyAt then
-			local dur = db and db.questPeekDuration or 8
+			local dur = db and db.questPeekDuration or 6
 			if dur > 0 then
 				state.questPeekUntil = now + dur
 			end
@@ -274,7 +274,7 @@ eventFrame:SetScript("OnEvent", function(_, event, unit, arg2)
 	elseif event == "QUEST_WATCH_UPDATE" or event == "QUEST_LOG_UPDATE" then
 		local changed = CheckQuestSnapshotChanged()
 		if changed and now >= state.questReadyAt then
-			local dur = db and db.questPeekDuration or 8
+			local dur = db and db.questPeekDuration or 6
 			if dur > 0 then
 				state.questPeekUntil = now + dur
 			end
@@ -438,24 +438,52 @@ local function RefreshTracking()
 	state.trackingActive = found
 end
 
--- Check if the player currently has any debuff applied (secret-value & combat safe)
+local GHOST_DEBUFF_SPELL_ID = 8326
+
+-- Check if the player currently has any debuff applied (secret-value & combat safe; ignores Ghost debuff)
 local function RefreshDebuffs()
 	state.auraDirty = false
 	local found = false
+	local isDead = SafeBool(UnitIsDeadOrGhost("player"))
 	if C_UnitAuras and C_UnitAuras.GetAuraDataByIndex then
-		local ok, aura = pcall(C_UnitAuras.GetAuraDataByIndex, "player", 1, "HARMFUL")
-		if ok and aura ~= nil then
-			found = true
+		for i = 1, 40 do
+			local ok, aura = pcall(C_UnitAuras.GetAuraDataByIndex, "player", i, "HARMFUL")
+			if not ok or aura == nil then
+				break
+			end
+			if IsSecret(aura) then
+				found = true
+				break
+			elseif type(aura) == "table" then
+				local spellId = SafeNumber(aura.spellId)
+				local name = (type(aura.name) == "string" and not IsSecret(aura.name)) and aura.name or nil
+				if spellId ~= GHOST_DEBUFF_SPELL_ID and name ~= "Ghost" then
+					found = true
+					break
+				end
+			end
 		end
 	elseif UnitDebuff then
-		local ok, name = pcall(UnitDebuff, "player", 1)
-		if ok and name ~= nil then
-			found = true
+		for i = 1, 40 do
+			local ok, name, _, _, _, _, _, _, _, _, spellId = pcall(UnitDebuff, "player", i)
+			if not ok or name == nil then
+				break
+			end
+			if IsSecret(name) then
+				found = true
+				break
+			end
+			local safeId = SafeNumber(spellId)
+			if safeId ~= GHOST_DEBUFF_SPELL_ID and name ~= "Ghost" then
+				found = true
+				break
+			end
 		end
 	end
 
 	-- Combat/secret fallback: inspect Blizzard's DebuffFrame for any active visible debuff button
-	if not found then
+	-- (skipped while dead/ghost so the Ghost debuff icon does not falsely trip Has Any Debuff)
+	if not found and not isDead then
 		local df = _G.DebuffFrame
 		if ns.IsUsableFrame(df) and SafeBool(df:IsShown()) then
 			local buttons = (type(df.auraFrames) == "table" and #df.auraFrames > 0) and df.auraFrames
@@ -877,6 +905,15 @@ function ns.EvaluateConditions(now)
 	currentFlags.unreadMail = SafeBool(HasNewMail and HasNewMail())
 	currentFlags.minimapPing = now < state.minimapPingUntil
 	currentFlags.indoors = SafeBool(IsIndoors and IsIndoors())
+
+	-- Suppress automatic triggers while dead/ghost (keeps hover, Always Show, and chat peeks working)
+	if (not db or db.fadeWhenDead ~= false) and SafeBool(UnitIsDeadOrGhost("player")) then
+		for k in pairs(currentFlags) do
+			if k ~= "chatMessage" then
+				currentFlags[k] = false
+			end
+		end
+	end
 
 	return currentFlags
 end

@@ -356,10 +356,239 @@ StaticPopupDialogs["PUREFADE_CONFIRM_RESET"] = {
 	preferredIndex = 3,
 }
 
+StaticPopupDialogs["PUREFADE_NEW_PROFILE"] = {
+	text = "Enter a name for the new profile\n(copied from your current settings):",
+	button1 = "Create",
+	button2 = CANCEL,
+	hasEditBox = true,
+	maxLetters = 40,
+	OnShow = function(self)
+		local eb = self.EditBox or self.editBox
+		if eb then
+			eb:SetText("")
+			eb:SetFocus()
+		end
+	end,
+	OnAccept = function(self)
+		local eb = self.EditBox or self.editBox
+		local name = strtrim((eb and eb:GetText()) or "")
+		if name ~= "" and ns.CreateProfile and ns.CreateProfile(name, true) then
+			RefreshAllPages()
+			if ns.ForceRefresh then ns.ForceRefresh() end
+		end
+	end,
+	EditBoxOnEnterPressed = function(self)
+		local parent = self:GetParent()
+		local btn = parent.button1 or (parent.ButtonContainer and parent.ButtonContainer.Button1)
+		if btn and btn:IsEnabled() then btn:Click() end
+	end,
+	EditBoxOnEscapePressed = function(self)
+		self:GetParent():Hide()
+	end,
+	timeout = 0,
+	whileDead = true,
+	hideOnEscape = true,
+	preferredIndex = 3,
+}
+
+StaticPopupDialogs["PUREFADE_RENAME_PROFILE"] = {
+	text = "Rename profile '%s' to:",
+	button1 = "Save",
+	button2 = CANCEL,
+	hasEditBox = true,
+	maxLetters = 40,
+	OnShow = function(self, data)
+		local eb = self.EditBox or self.editBox
+		if eb then
+			eb:SetText((data and data.oldName) or "")
+			eb:SetFocus()
+			eb:HighlightText()
+		end
+	end,
+	OnAccept = function(self, data)
+		local eb = self.EditBox or self.editBox
+		local newName = strtrim((eb and eb:GetText()) or "")
+		if data and data.oldName and newName ~= "" and ns.RenameProfile and ns.RenameProfile(data.oldName, newName) then
+			RefreshAllPages()
+		end
+	end,
+	EditBoxOnEnterPressed = function(self)
+		local parent = self:GetParent()
+		local btn = parent.button1 or (parent.ButtonContainer and parent.ButtonContainer.Button1)
+		if btn and btn:IsEnabled() then btn:Click() end
+	end,
+	EditBoxOnEscapePressed = function(self)
+		self:GetParent():Hide()
+	end,
+	timeout = 0,
+	whileDead = true,
+	hideOnEscape = true,
+	preferredIndex = 3,
+}
+
+StaticPopupDialogs["PUREFADE_DELETE_PROFILE"] = {
+	text = "Delete profile '%s'?\n\nThis cannot be undone.",
+	button1 = DELETE,
+	button2 = CANCEL,
+	OnAccept = function(_, data)
+		if data and data.name and ns.DeleteProfile and ns.DeleteProfile(data.name) then
+			RefreshAllPages()
+			if ns.ForceRefresh then ns.ForceRefresh() end
+		end
+	end,
+	timeout = 0,
+	whileDead = true,
+	hideOnEscape = true,
+	preferredIndex = 3,
+}
+
+StaticPopupDialogs["PUREFADE_IMPORT_NAME"] = {
+	text = "Enter a name for the imported profile:",
+	button1 = "Import",
+	button2 = CANCEL,
+	hasEditBox = true,
+	maxLetters = 40,
+	OnShow = function(self)
+		local eb = self.EditBox or self.editBox
+		if eb then
+			eb:SetText("Imported")
+			eb:SetFocus()
+			eb:HighlightText()
+		end
+	end,
+	OnAccept = function(self, data)
+		local eb = self.EditBox or self.editBox
+		local name = strtrim((eb and eb:GetText()) or "")
+		if data and data.encoded and ns.ImportProfile then
+			local ok, result = ns.ImportProfile(data.encoded, name)
+			if ok then
+				print("|cff66ccffPureFade:|r Imported profile as '|cffffff00" .. result .. "|r'.")
+				RefreshAllPages()
+				if ns.ForceRefresh then ns.ForceRefresh() end
+			else
+				print("|cff66ccffPureFade:|r |cffff6666Import failed:|r " .. tostring(result))
+			end
+		end
+	end,
+	EditBoxOnEnterPressed = function(self)
+		local parent = self:GetParent()
+		local btn = parent.button1 or (parent.ButtonContainer and parent.ButtonContainer.Button1)
+		if btn and btn:IsEnabled() then btn:Click() end
+	end,
+	EditBoxOnEscapePressed = function(self)
+		self:GetParent():Hide()
+	end,
+	timeout = 0,
+	whileDead = true,
+	hideOnEscape = true,
+	preferredIndex = 3,
+}
+
+StaticPopupDialogs["PUREFADE_NEW_GROUP"] = {
+	text = "Enter a name for the new group:",
+	button1 = "Create",
+	button2 = CANCEL,
+	hasEditBox = true,
+	maxLetters = 40,
+	OnShow = function(self)
+		local eb = self.EditBox or self.editBox
+		if eb then
+			eb:SetText("")
+			eb:SetFocus()
+		end
+	end,
+	OnAccept = function(self)
+		local eb = self.EditBox or self.editBox
+		local name = strtrim((eb and eb:GetText()) or "")
+		if name == "" or name == "None" then return end
+		if ns.IsReadOnlyProfile and ns.IsReadOnlyProfile() and ns.EnsureEditableProfile then
+			ns.EnsureEditableProfile()
+		end
+		local db = ns.GetDB()
+		if not db then return end
+		db.groups = db.groups or {}
+		if not db.groups[name] then
+			db.groups[name] = { syncMode = "hover" }
+		end
+		RefreshAllPages()
+		if ns.ForceRefresh then ns.ForceRefresh() end
+	end,
+	EditBoxOnEnterPressed = function(self)
+		local parent = self:GetParent()
+		local btn = parent.button1 or (parent.ButtonContainer and parent.ButtonContainer.Button1)
+		if btn and btn:IsEnabled() then btn:Click() end
+	end,
+	EditBoxOnEscapePressed = function(self)
+		self:GetParent():Hide()
+	end,
+	timeout = 0,
+	whileDead = true,
+	hideOnEscape = true,
+	preferredIndex = 3,
+}
+
+StaticPopupDialogs["PUREFADE_RENAME_GROUP"] = {
+	text = "Rename group '%s' to:",
+	button1 = "Save",
+	button2 = CANCEL,
+	hasEditBox = true,
+	maxLetters = 40,
+	OnShow = function(self, data)
+		local eb = self.EditBox or self.editBox
+		if eb then
+			eb:SetText((data and data.oldName) or "")
+			eb:SetFocus()
+			eb:HighlightText()
+		end
+	end,
+	OnAccept = function(self, data)
+		local eb = self.EditBox or self.editBox
+		local newName = strtrim((eb and eb:GetText()) or "")
+		local oldName = data and data.oldName
+		if not oldName or newName == "" or newName == "None" or newName == oldName then return end
+		if ns.IsReadOnlyProfile and ns.IsReadOnlyProfile() and ns.EnsureEditableProfile then
+			ns.EnsureEditableProfile()
+		end
+		local db = ns.GetDB()
+		if not db or not db.groups or not db.groups[oldName] then return end
+		if db.groups[newName] then
+			print("|cff66ccffPureFade:|r Group '" .. newName .. "' already exists.")
+			return
+		end
+		db.groups[newName] = db.groups[oldName]
+		db.groups[oldName] = nil
+		for _, cfg in pairs(db.elements or {}) do
+			if cfg.group == oldName then cfg.group = newName end
+		end
+		for _, cfg in pairs(db.addons or {}) do
+			if cfg.group == oldName then cfg.group = newName end
+		end
+		for _, cfg in pairs(db.customFrames or {}) do
+			if cfg.group == oldName then cfg.group = newName end
+		end
+		RefreshAllPages()
+		if ns.ForceRefresh then ns.ForceRefresh() end
+	end,
+	EditBoxOnEnterPressed = function(self)
+		local parent = self:GetParent()
+		local btn = parent.button1 or (parent.ButtonContainer and parent.ButtonContainer.Button1)
+		if btn and btn:IsEnabled() then btn:Click() end
+	end,
+	EditBoxOnEscapePressed = function(self)
+		self:GetParent():Hide()
+	end,
+	timeout = 0,
+	whileDead = true,
+	hideOnEscape = true,
+	preferredIndex = 3,
+}
+
 local function GuardEditable()
-	if ns.IsReadOnlyProfile and ns.IsReadOnlyProfile() then
-		print("|cff66ccffPureFade:|r Default profile is read-only. Click '|cffffff00Copy to Editable Profile|r' to customize.")
-		return false
+	if ns.IsReadOnlyProfile and ns.IsReadOnlyProfile() and ns.EnsureEditableProfile then
+		local _, switched = ns.EnsureEditableProfile()
+		if switched and C_Timer and C_Timer.After then
+			C_Timer.After(0, RefreshAllPages)
+		end
 	end
 	return true
 end
@@ -456,10 +685,7 @@ local function MakeSlider(parent, label, minVal, maxVal, step, formatFn, tip, ge
 end
 
 -- Context menu helper using WoW Forever's native MenuUtil
-local function OpenDropdownMenu(owner, buildFn, allowReadOnly)
-	if not allowReadOnly and not GuardEditable() then
-		return
-	end
+local function OpenDropdownMenu(owner, buildFn)
 	if MenuUtil and MenuUtil.CreateContextMenu then
 		MenuUtil.CreateContextMenu(owner, function(_, rootDescription)
 			buildFn(rootDescription)
@@ -468,7 +694,7 @@ local function OpenDropdownMenu(owner, buildFn, allowReadOnly)
 end
 
 -- Standard page canvas with Title, Subtitle, Top-Right "Reset to Defaults" button, and ScrollFrame
-local function CreateSettingsPage(titleText, subtitleText, resetPageKey)
+local function CreateSettingsPage(titleText, subtitleText, resetPageKey, hideSearch)
 	local canvas = CreateFrame("Frame")
 	canvas:Hide()
 
@@ -477,7 +703,7 @@ local function CreateSettingsPage(titleText, subtitleText, resetPageKey)
 	title:SetText(titleText)
 
 	local resetBtn = MakeButton(canvas, "Reset to Defaults", 130, 22, function()
-		if not GuardEditable() then return end
+		if ns.IsReadOnlyProfile and ns.IsReadOnlyProfile() then return end
 		local active = ns.GetActiveProfileName and ns.GetActiveProfileName() or "Custom"
 		local pageLabel = (resetPageKey == "all") and "ALL" or titleText
 		StaticPopup_Show("PUREFADE_CONFIRM_RESET", pageLabel, active, { pageKey = resetPageKey })
@@ -485,11 +711,14 @@ local function CreateSettingsPage(titleText, subtitleText, resetPageKey)
 	resetBtn:SetPoint("TOPRIGHT", canvas, "TOPRIGHT", -24, -14)
 	AttachTooltip(resetBtn, "Reset to Defaults", "Resets only this page's settings in the current profile back to Default values.")
 
-	local searchBox = AttachSearchBar(canvas, resetBtn)
+	local rightAnchor = resetBtn
+	if not hideSearch then
+		rightAnchor = AttachSearchBar(canvas, resetBtn)
+	end
 
 	local sub = canvas:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 	sub:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -4)
-	sub:SetPoint("RIGHT", searchBox, "LEFT", -12, 0)
+	sub:SetPoint("RIGHT", rightAnchor, "LEFT", -12, 0)
 	sub:SetJustifyH("LEFT")
 	sub:SetText(subtitleText)
 	sub:SetTextColor(0.75, 0.75, 0.75)
@@ -500,38 +729,9 @@ local function CreateSettingsPage(titleText, subtitleText, resetPageKey)
 	divider:SetPoint("TOPRIGHT", canvas, "TOPRIGHT", -24, -52)
 	divider:SetColorTexture(0.35, 0.35, 0.35, 0.6)
 
-	-- Compact Read-Only Default profile notice (shown at bottom-right of header when Default is active)
-	local roBanner = CreateFrame("Frame", nil, canvas, "BackdropTemplate")
-	roBanner:SetHeight(26)
-	roBanner:SetPoint("BOTTOMLEFT", canvas, "BOTTOMLEFT", 16, 8)
-	roBanner:SetPoint("BOTTOMRIGHT", canvas, "BOTTOMRIGHT", -24, 8)
-	roBanner:SetBackdrop({
-		bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
-		edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-		tile = true, tileSize = 16, edgeSize = 10,
-		insets = { left = 3, right = 3, top = 3, bottom = 3 },
-	})
-	roBanner:SetBackdropColor(0.22, 0.16, 0.04, 0.92)
-	roBanner:SetBackdropBorderColor(0.95, 0.75, 0.2, 0.9)
-	roBanner:SetFrameLevel(canvas:GetFrameLevel() + 10)
-	roBanner:Hide()
-
-	local roText = roBanner:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-	roText:SetPoint("LEFT", roBanner, "LEFT", 10, 0)
-	roText:SetText("Default profile is read-only. Create an editable copy to customize settings.")
-
-	local roCopyBtn = MakeButton(roBanner, "Copy to Editable Profile", 160, 20, function()
-		if ns.CreateEditableCopyFromDefault and ns.CreateEditableCopyFromDefault() then
-			RefreshAllPages()
-			if ns.ForceRefresh then ns.ForceRefresh() end
-		end
-	end)
-	roCopyBtn:SetPoint("RIGHT", roBanner, "RIGHT", -6, 0)
-
 	local function RefreshPageChrome()
 		local ro = ns.IsReadOnlyProfile and ns.IsReadOnlyProfile() or false
 		resetBtn:SetEnabled(not ro)
-		roBanner:SetShown(ro and resetPageKey ~= "all")
 	end
 	refreshCallbacks[#refreshCallbacks + 1] = RefreshPageChrome
 	canvas:HookScript("OnShow", RefreshPageChrome)
@@ -609,23 +809,42 @@ local function BuildGeneralPage()
 	loginLabel:SetJustifyH("LEFT")
 	loginLabel:SetText("Login Behavior")
 
-	local loginBtn = MakeButton(loginRow, "", 190, 22)
-	loginBtn:SetPoint("LEFT", loginLabel, "RIGHT", 12, 0)
-	loginBtn:SetScript("OnClick", function(self)
-		OpenDropdownMenu(self, function(root)
-			root:CreateRadio("Delay Before Fading",
-				function() return ns.GetDB().loginBehavior == "delay" end,
-				function() ns.GetDB().loginBehavior = "delay"; RefreshAllPages() end
-			)
-			root:CreateRadio("Start Faded Immediately",
-				function() return ns.GetDB().loginBehavior == "faded" end,
-				function() ns.GetDB().loginBehavior = "faded"; RefreshAllPages() end
-			)
+	local function BuildLoginMenu(root)
+		root:CreateRadio("Delay Before Fading",
+			function() return ns.GetDB().loginBehavior == "delay" end,
+			function() GuardEditable(); ns.GetDB().loginBehavior = "delay"; RefreshAllPages() end
+		)
+		root:CreateRadio("Start Faded Immediately",
+			function() return ns.GetDB().loginBehavior == "faded" end,
+			function() GuardEditable(); ns.GetDB().loginBehavior = "faded"; RefreshAllPages() end
+		)
+	end
+
+	local loginDropdown
+	local okLD, ld = pcall(CreateFrame, "DropdownButton", nil, loginRow, "WowStyle1DropdownTemplate")
+	if okLD and ld and ld.SetupMenu then
+		ld:SetWidth(210)
+		ld:SetPoint("LEFT", loginLabel, "RIGHT", 12, 0)
+		ld:SetupMenu(function(_, root)
+			BuildLoginMenu(root)
 		end)
-	end)
+		loginDropdown = ld
+	else
+		local fallbackBtn = MakeButton(loginRow, "", 210, 22, function(self)
+			OpenDropdownMenu(self, BuildLoginMenu)
+		end)
+		fallbackBtn:SetPoint("LEFT", loginLabel, "RIGHT", 12, 0)
+		loginDropdown = fallbackBtn
+	end
+
 	loginRow.Refresh = function()
 		local mode = ns.GetDB().loginBehavior
-		loginBtn:SetText(mode == "faded" and "Start Faded Immediately" or "Delay Before Fading")
+		local txt = mode == "faded" and "Start Faded Immediately" or "Delay Before Fading"
+		if loginDropdown.OverrideText then
+			loginDropdown:OverrideText(txt)
+		elseif loginDropdown.SetText then
+			loginDropdown:SetText(txt)
+		end
 	end
 	Add(loginRow, 28, "Login Behavior", "login start faded delay")
 
@@ -794,7 +1013,13 @@ local function BuildGeneralPage()
 		"When 'Buff Changed' peeks, shows only the newly gained or refreshed buff icon in its current slot while other buffs stay faded.",
 		function() return ns.GetDB().buffPeekOnlyNew ~= false end,
 		function(v) ns.GetDB().buffPeekOnlyNew = v end
-	), 30, "Buff Peek: Only New Buffs", "buff peek single icon new aura")
+	), 26, "Buff Peek: Only New Buffs", "buff peek single icon new aura")
+
+	Add(MakeCheckbox(content, "Suppress automatic triggers while Dead / Ghost",
+		"Fades Mail, Vitals, Debuffs, Tracking, and other automatic triggers during corpse runs (hover, chat peeks, and Always Show elements still work).",
+		function() return ns.GetDB().fadeWhenDead ~= false end,
+		function(v) ns.GetDB().fadeWhenDead = v end
+	), 30, "Suppress Triggers While Dead / Ghost", "dead ghost corpse spirit mail debuff fade")
 
 	content:SetHeight(math.abs(y) + 20)
 
@@ -1016,16 +1241,23 @@ local function BuildElementsPage()
 			row.itemKey = item.key
 			row.label:SetText(item.label)
 			row.groupBtn:SetText(cfg.group or "None")
-			row.alwaysCB:SetChecked(cfg.alwaysShow and true or false)
+			local isAlways = cfg.alwaysShow and true or false
+			row.alwaysCB:SetChecked(isAlways)
 			row.hoverCB:SetChecked(cfg.hover ~= false)
 			local trigText, trigFull = SummarizeTriggers(cfg.triggers)
 			row.trigBtn:SetWidth(item.isCustom and 148 or 174)
 			row.trigBtn:SetText(trigText)
-			AttachTooltip(row.trigBtn, "Active Triggers", trigFull or "None (only fades/reveals on hover or group sync)")
+			row.trigBtn:SetEnabled(not isAlways)
+			AttachTooltip(row.trigBtn, "Active Triggers",
+				isAlways and "Disabled while Always Show is checked." or (trigFull or "None (only fades/reveals on hover or group sync)"))
 
 			row.alwaysCB:SetScript("OnClick", function(self)
 				if not GuardEditable() then self:SetChecked(cfg.alwaysShow and true or false); return end
 				cfg.alwaysShow = self:GetChecked() and true or false
+				row.trigBtn:SetEnabled(not cfg.alwaysShow)
+				local _, curFull = SummarizeTriggers(cfg.triggers)
+				AttachTooltip(row.trigBtn, "Active Triggers",
+					cfg.alwaysShow and "Disabled while Always Show is checked." or (curFull or "None (only fades/reveals on hover or group sync)"))
 				if ns.ForceRefresh then ns.ForceRefresh() end
 			end)
 
@@ -1040,6 +1272,7 @@ local function BuildElementsPage()
 					root:CreateRadio("None",
 						function() return (cfg.group or "None") == "None" end,
 						function()
+							GuardEditable()
 							cfg.group = "None"
 							RefreshAllPages()
 							if ns.ForceRefresh then ns.ForceRefresh() end
@@ -1052,6 +1285,7 @@ local function BuildElementsPage()
 						root:CreateRadio(gName,
 							function() return cfg.group == gName end,
 							function()
+								GuardEditable()
 								cfg.group = gName
 								RefreshAllPages()
 								if ns.ForceRefresh then ns.ForceRefresh() end
@@ -1073,6 +1307,7 @@ local function BuildElementsPage()
 						root:CreateCheckbox(t.label,
 							function() return cfg.triggers[t.key] and true or false end,
 							function()
+								GuardEditable()
 								cfg.triggers[t.key] = not cfg.triggers[t.key]
 								local newText, newFull = SummarizeTriggers(cfg.triggers)
 								row.trigBtn:SetText(newText)
@@ -1087,6 +1322,7 @@ local function BuildElementsPage()
 			if item.isCustom then
 				row.delBtn:Show()
 				row.delBtn:SetScript("OnClick", function()
+					GuardEditable()
 					db.customFrames[item.key] = nil
 					if ns.RestoreAllFrames then ns.RestoreAllFrames() end
 					if ns.ForceRefresh then ns.ForceRefresh() end
@@ -1148,32 +1384,12 @@ local function BuildGroupsPage()
 	local rowPool = {}
 	local RefreshGroups
 
-	-- Top create bar inside content
-	local createBar = CreateFrame("Frame", nil, content)
-	createBar:SetPoint("TOPLEFT", content, "TOPLEFT", 4, -4)
-	createBar:SetSize(560, 28)
-
-	local newLabel = createBar:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-	newLabel:SetPoint("LEFT", createBar, "LEFT", 0, 0)
-	newLabel:SetText("New Group Name:")
-
-	local newInput = MakeEditBox(createBar, 180, 22)
-	newInput:SetPoint("LEFT", newLabel, "RIGHT", 10, 0)
-
-	local createBtn = MakeButton(createBar, "Create Group", 110, 22, function()
-		if not GuardEditable() then return end
-		local name = strtrim(newInput:GetText() or "")
-		if name == "" or name == "None" then return end
-		local db = ns.GetDB()
-		db.groups = db.groups or {}
-		if not db.groups[name] then
-			db.groups[name] = { syncMode = "all" }
-		end
-		newInput:SetText("")
-		newInput:ClearFocus()
-		RefreshAllPages()
+	-- Top Create Group button (opens popup)
+	local createBtn = MakeButton(content, "Create Group", 120, 24, function()
+		StaticPopup_Show("PUREFADE_NEW_GROUP")
 	end)
-	createBtn:SetPoint("LEFT", newInput, "RIGHT", 8, 0)
+	createBtn:SetPoint("TOPLEFT", content, "TOPLEFT", 4, -4)
+	AttachTooltip(createBtn, "Create Group", "Create a new element group.")
 
 	local function GetGroupMembers(db, groupName)
 		local members = {}
@@ -1212,6 +1428,7 @@ local function BuildGroupsPage()
 								sub:CreateCheckbox(el.label,
 									function() return cfg.group == groupName end,
 									function()
+										GuardEditable()
 										cfg.group = (cfg.group == groupName) and "None" or groupName
 										RefreshAllPages()
 										if ns.ForceRefresh then ns.ForceRefresh() end
@@ -1239,6 +1456,7 @@ local function BuildGroupsPage()
 					sub:CreateCheckbox(item.label,
 						function() return item.cfg.group == groupName end,
 						function()
+							GuardEditable()
 							item.cfg.group = (item.cfg.group == groupName) and "None" or groupName
 							RefreshAllPages()
 							if ns.ForceRefresh then ns.ForceRefresh() end
@@ -1258,6 +1476,7 @@ local function BuildGroupsPage()
 					sub:CreateCheckbox(frameName,
 						function() return cfg.group == groupName end,
 						function()
+							GuardEditable()
 							cfg.mode = "custom"
 							cfg.group = (cfg.group == groupName) and "None" or groupName
 							RefreshAllPages()
@@ -1272,7 +1491,7 @@ local function BuildGroupsPage()
 	local function GetCard(idx)
 		if rowPool[idx] then return rowPool[idx] end
 		local card = CreateFrame("Frame", nil, content, "BackdropTemplate")
-		card:SetSize(565, 58)
+		card:SetSize(565, 66)
 		card:SetBackdrop({
 			bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
 			edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
@@ -1282,20 +1501,25 @@ local function BuildGroupsPage()
 		card:SetBackdropColor(0.08, 0.08, 0.08, 0.55)
 		card:SetBackdropBorderColor(0.35, 0.35, 0.35, 0.7)
 
-		card.nameFS = card:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-		card.nameFS:SetPoint("TOPLEFT", card, "TOPLEFT", 10, -8)
-
-		card.membersBtn = MakeButton(card, "Members", 82, 20)
-		card.membersBtn:SetPoint("TOPRIGHT", card, "TOPRIGHT", -250, -6)
-
-		card.modeBtn = MakeButton(card, "", 168, 20)
-		card.modeBtn:SetPoint("TOPRIGHT", card, "TOPRIGHT", -78, -6)
-
 		card.delBtn = MakeButton(card, "Delete", 64, 20)
-		card.delBtn:SetPoint("TOPRIGHT", card, "TOPRIGHT", -8, -6)
+		card.delBtn:SetPoint("TOPRIGHT", card, "TOPRIGHT", -8, -7)
+
+		card.renameBtn = MakeButton(card, "Rename", 76, 20)
+		card.renameBtn:SetPoint("RIGHT", card.delBtn, "LEFT", -4, 0)
+
+		card.modeBtn = MakeButton(card, "", 156, 20)
+		card.modeBtn:SetPoint("RIGHT", card.renameBtn, "LEFT", -4, 0)
+
+		card.membersBtn = MakeButton(card, "Elements", 78, 20)
+		card.membersBtn:SetPoint("RIGHT", card.modeBtn, "LEFT", -4, 0)
+
+		card.nameFS = card:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+		card.nameFS:SetPoint("TOPLEFT", card, "TOPLEFT", 10, -10)
+		card.nameFS:SetPoint("RIGHT", card.membersBtn, "LEFT", -8, 0)
+		card.nameFS:SetJustifyH("LEFT")
 
 		card.membersFS = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-		card.membersFS:SetPoint("TOPLEFT", card.nameFS, "BOTTOMLEFT", 0, -6)
+		card.membersFS:SetPoint("TOPLEFT", card, "TOPLEFT", 10, -35)
 		card.membersFS:SetPoint("RIGHT", card, "RIGHT", -10, 0)
 		card.membersFS:SetJustifyH("LEFT")
 		card.membersFS:SetTextColor(0.8, 0.8, 0.8)
@@ -1318,7 +1542,7 @@ local function BuildGroupsPage()
 			rowPool[i]:Hide()
 		end
 
-		local y = -42
+		local y = -40
 		for i, gName in ipairs(gNames) do
 			local gCfg = db.groups[gName]
 			local card = GetCard(i)
@@ -1332,10 +1556,14 @@ local function BuildGroupsPage()
 
 			local members = GetGroupMembers(db, gName)
 			if #members > 0 then
-				card.membersFS:SetText("Members: " .. table.concat(members, ", "))
+				card.membersFS:SetText("Elements: " .. table.concat(members, ", "))
 			else
-				card.membersFS:SetText("|cff888888No elements assigned yet (assign on Elements page).|r")
+				card.membersFS:SetText("|cff888888No elements assigned yet (use Elements button above).|r")
 			end
+
+			local textH = card.membersFS:GetStringHeight() or 14
+			local cardH = math.max(64, math.ceil(35 + textH + 12))
+			card:SetHeight(cardH)
 
 			card.membersBtn:SetScript("OnClick", function(self)
 				OpenGroupMembersMenu(self, db, gName)
@@ -1346,6 +1574,7 @@ local function BuildGroupsPage()
 					root:CreateRadio("Hover + Triggers (Fade Together)",
 						function() return gCfg.syncMode ~= "hover" end,
 						function()
+							GuardEditable()
 							gCfg.syncMode = "all"
 							RefreshAllPages()
 							if ns.ForceRefresh then ns.ForceRefresh() end
@@ -1354,6 +1583,7 @@ local function BuildGroupsPage()
 					root:CreateRadio("Hover Only",
 						function() return gCfg.syncMode == "hover" end,
 						function()
+							GuardEditable()
 							gCfg.syncMode = "hover"
 							RefreshAllPages()
 							if ns.ForceRefresh then ns.ForceRefresh() end
@@ -1362,10 +1592,17 @@ local function BuildGroupsPage()
 				end)
 			end)
 
+			card.renameBtn:SetScript("OnClick", function()
+				StaticPopup_Show("PUREFADE_RENAME_GROUP", gName, nil, { oldName = gName })
+			end)
+
 			card.delBtn:SetScript("OnClick", function()
 				if not GuardEditable() then return end
 				db.groups[gName] = nil
 				for _, cfg in pairs(db.elements or {}) do
+					if cfg.group == gName then cfg.group = "None" end
+				end
+				for _, cfg in pairs(db.addons or {}) do
 					if cfg.group == gName then cfg.group = "None" end
 				end
 				for _, cfg in pairs(db.customFrames or {}) do
@@ -1375,7 +1612,7 @@ local function BuildGroupsPage()
 				if ns.ForceRefresh then ns.ForceRefresh() end
 			end)
 
-			y = y - 66
+			y = y - (cardH + 8)
 		end
 
 		content:SetHeight(math.max(1, math.abs(y) + 16))
@@ -1389,176 +1626,228 @@ end
 --------------------------------------------------------------------------------
 -- PAGE 4: PROFILES
 --------------------------------------------------------------------------------
+local profileIOModal
+
+local function ShowProfileIOModal(mode)
+	if not profileIOModal then
+		local f = CreateFrame("Frame", "PureFadeProfileIOModal", UIParent, "BackdropTemplate")
+		f:SetSize(460, 230)
+		f:SetPoint("CENTER")
+		f:SetFrameStrata("DIALOG")
+		f:SetToplevel(true)
+		f:EnableMouse(true)
+		f:SetMovable(true)
+		f:RegisterForDrag("LeftButton")
+		f:SetScript("OnDragStart", f.StartMoving)
+		f:SetScript("OnDragStop", f.StopMovingOrSizing)
+		f:SetBackdrop({
+			bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+			edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+			tile = true, tileSize = 16, edgeSize = 16,
+			insets = { left = 4, right = 4, top = 4, bottom = 4 },
+		})
+		f:SetBackdropColor(0.06, 0.06, 0.08, 0.96)
+		f:SetBackdropBorderColor(0.8, 0.65, 0.2, 0.95)
+		f:Hide()
+		if UISpecialFrames then
+			tinsert(UISpecialFrames, "PureFadeProfileIOModal")
+		end
+
+		f.titleFS = f:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+		f.titleFS:SetPoint("TOPLEFT", f, "TOPLEFT", 16, -14)
+
+		f.hintFS = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+		f.hintFS:SetPoint("TOPLEFT", f.titleFS, "BOTTOMLEFT", 0, -4)
+		f.hintFS:SetTextColor(0.75, 0.75, 0.75)
+
+		local boxBg = CreateFrame("Frame", nil, f, "BackdropTemplate")
+		boxBg:SetPoint("TOPLEFT", f.hintFS, "BOTTOMLEFT", 0, -10)
+		boxBg:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -16, 56)
+		boxBg:SetBackdrop({
+			bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+			edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+			tile = true, tileSize = 16, edgeSize = 10,
+			insets = { left = 3, right = 3, top = 3, bottom = 3 },
+		})
+		boxBg:SetBackdropColor(0.02, 0.02, 0.03, 0.95)
+		boxBg:SetBackdropBorderColor(0.45, 0.45, 0.45, 0.85)
+
+		local scroll = CreateFrame("ScrollFrame", nil, boxBg, "UIPanelScrollFrameTemplate")
+		scroll:SetPoint("TOPLEFT", boxBg, "TOPLEFT", 8, -6)
+		scroll:SetPoint("BOTTOMRIGHT", boxBg, "BOTTOMRIGHT", -28, 6)
+
+		local eb = CreateFrame("EditBox", nil, scroll)
+		eb:SetMultiLine(true)
+		eb:SetAutoFocus(false)
+		eb:SetFontObject(ChatFontNormal)
+		eb:SetWidth(388)
+		eb:SetScript("OnEscapePressed", function() f:Hide() end)
+		scroll:SetScrollChild(eb)
+		boxBg:EnableMouse(true)
+		boxBg:SetScript("OnMouseDown", function() eb:SetFocus() end)
+		f.editBox = eb
+
+		f.errFS = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+		f.errFS:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 16, 36)
+		f.errFS:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -16, 36)
+		f.errFS:SetJustifyH("LEFT")
+		f.errFS:SetTextColor(1, 0.35, 0.35)
+		f.errFS:Hide()
+
+		f.primaryBtn = MakeButton(f, "Import", 110, 24)
+		f.primaryBtn:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -16, 12)
+
+		f.cancelBtn = MakeButton(f, "Close", 90, 24, function() f:Hide() end)
+		f.cancelBtn:SetPoint("RIGHT", f.primaryBtn, "LEFT", -8, 0)
+
+		profileIOModal = f
+	end
+
+	local f = profileIOModal
+	f.errFS:Hide()
+	f.errFS:SetText("")
+
+	if mode == "export" then
+		local active = ns.GetActiveProfileName and ns.GetActiveProfileName() or "Default"
+		f.titleFS:SetText("Export Profile: " .. active)
+		f.hintFS:SetText("Press Ctrl+C to copy the profile string below.")
+		f.primaryBtn:SetText("Close")
+		f.primaryBtn:SetScript("OnClick", function() f:Hide() end)
+		f.cancelBtn:Hide()
+		local str = ns.ExportProfile and ns.ExportProfile() or ""
+		f.editBox:SetText(str)
+		f:Show()
+		f.editBox:SetFocus()
+		f.editBox:HighlightText()
+	else
+		f.titleFS:SetText("Import Profile")
+		f.hintFS:SetText("Paste a PureFade profile string (PF1:...) below and click Import.")
+		f.primaryBtn:SetText("Import")
+		f.cancelBtn:SetText(CANCEL)
+		f.cancelBtn:Show()
+		f.editBox:SetText("")
+		f.primaryBtn:SetScript("OnClick", function()
+			local str = strtrim(f.editBox:GetText() or "")
+			if str == "" then
+				f.errFS:SetText("Please paste a PureFade profile string first.")
+				f.errFS:Show()
+				return
+			end
+			if ns.ValidateImportString then
+				local ok, err = ns.ValidateImportString(str)
+				if not ok then
+					f.errFS:SetText(err or "Invalid profile string.")
+					f.errFS:Show()
+					return
+				end
+			end
+			f:Hide()
+			StaticPopup_Show("PUREFADE_IMPORT_NAME", nil, nil, { encoded = str })
+		end)
+		f:Show()
+		f.editBox:SetFocus()
+	end
+end
+
 local function BuildProfilesPage()
 	local canvas, content = CreateSettingsPage(
 		"Profiles",
-		"Manage saved PureFade profiles. Each character can use Default or any custom profile.",
-		"all"
+		"Manage saved PureFade profiles. Editing settings while on Default automatically saves to Custom.",
+		"all",
+		true -- hide search bar on Profiles page
 	)
 
-	local y = -8
+	local y = -12
 
-	-- Active Profile selector
+	-- Row 1: Active Profile dropdown + Rename + Delete
 	local activeLabel = content:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-	activeLabel:SetPoint("TOPLEFT", content, "TOPLEFT", 4, y - 4)
-	activeLabel:SetWidth(160)
+	activeLabel:SetPoint("TOPLEFT", content, "TOPLEFT", 4, y - 5)
+	activeLabel:SetWidth(120)
 	activeLabel:SetJustifyH("LEFT")
 	activeLabel:SetText("Active Profile:")
 
-	local activeBtn = MakeButton(content, "Default", 200, 22)
-	activeBtn:SetPoint("LEFT", activeLabel, "RIGHT", 10, 0)
-	y = y - 38
-
-	-- Create / Copy Profile
-	local createLabel = content:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-	createLabel:SetPoint("TOPLEFT", content, "TOPLEFT", 4, y - 4)
-	createLabel:SetWidth(160)
-	createLabel:SetJustifyH("LEFT")
-	createLabel:SetText("New Profile Name:")
-
-	local createInput = MakeEditBox(content, 180, 22)
-	createInput:SetPoint("LEFT", createLabel, "RIGHT", 10, 0)
-
-	local createDefBtn = MakeButton(content, "Create (Default)", 115, 22, function()
-		local name = strtrim(createInput:GetText() or "")
-		if name == "" then return end
-		if ns.CreateProfile(name, false) then
-			createInput:SetText("")
-			createInput:ClearFocus()
-			RefreshAllPages()
-			if ns.ForceRefresh then ns.ForceRefresh() end
+	local function BuildProfileMenu(root)
+		for _, name in ipairs(ns.GetProfileNames()) do
+			root:CreateRadio(name,
+				function() return ns.GetActiveProfileName() == name end,
+				function()
+					ns.SetProfile(name)
+					RefreshAllPages()
+					if ns.ForceRefresh then ns.ForceRefresh() end
+				end
+			)
 		end
+	end
+
+	local activeDropdown
+	local okDD, dd = pcall(CreateFrame, "DropdownButton", nil, content, "WowStyle1DropdownTemplate")
+	if okDD and dd and dd.SetupMenu then
+		dd:SetWidth(210)
+		dd:SetPoint("LEFT", activeLabel, "RIGHT", 8, 0)
+		dd:SetupMenu(function(_, root)
+			BuildProfileMenu(root)
+		end)
+		activeDropdown = dd
+	else
+		local fallbackBtn = MakeButton(content, "Default", 210, 24, function(self)
+			OpenDropdownMenu(self, BuildProfileMenu)
+		end)
+		fallbackBtn:SetPoint("LEFT", activeLabel, "RIGHT", 8, 0)
+		activeDropdown = fallbackBtn
+	end
+
+	local renameBtn = MakeButton(content, "Rename", 82, 24, function()
+		local active = ns.GetActiveProfileName and ns.GetActiveProfileName() or "Default"
+		if active == "Default" then return end
+		StaticPopup_Show("PUREFADE_RENAME_PROFILE", active, nil, { oldName = active })
 	end)
-	createDefBtn:SetPoint("LEFT", createInput, "RIGHT", 8, 0)
+	renameBtn:SetPoint("LEFT", activeDropdown, "RIGHT", 8, 0)
+	AttachTooltip(renameBtn, "Rename Profile", "Rename the currently active profile (unavailable for Default).")
 
-	local copyCurBtn = MakeButton(content, "Copy Current", 100, 22, function()
-		local name = strtrim(createInput:GetText() or "")
-		if name == "" then return end
-		if ns.CreateProfile(name, true) then
-			createInput:SetText("")
-			createInput:ClearFocus()
-			RefreshAllPages()
-			if ns.ForceRefresh then ns.ForceRefresh() end
-		end
+	local deleteBtn = MakeButton(content, "Delete", 82, 24, function()
+		local active = ns.GetActiveProfileName and ns.GetActiveProfileName() or "Default"
+		if active == "Default" then return end
+		StaticPopup_Show("PUREFADE_DELETE_PROFILE", active, nil, { name = active })
 	end)
-	copyCurBtn:SetPoint("LEFT", createDefBtn, "RIGHT", 6, 0)
-	y = y - 38
+	deleteBtn:SetPoint("LEFT", renameBtn, "RIGHT", 6, 0)
+	AttachTooltip(deleteBtn, "Delete Profile", "Delete the currently active profile (unavailable for Default).")
+	y = y - 46
 
-	-- Rename Profile
-	local renameLabel = content:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-	renameLabel:SetPoint("TOPLEFT", content, "TOPLEFT", 4, y - 4)
-	renameLabel:SetWidth(160)
-	renameLabel:SetJustifyH("LEFT")
-	renameLabel:SetText("Rename Current:")
-
-	local renameInput = MakeEditBox(content, 180, 22)
-	renameInput:SetPoint("LEFT", renameLabel, "RIGHT", 10, 0)
-
-	local renameBtn = MakeButton(content, "Rename", 80, 22, function()
-		local newName = strtrim(renameInput:GetText() or "")
-		if newName == "" then return end
-		if ns.RenameCurrentProfile(newName) then
-			renameInput:SetText("")
-			renameInput:ClearFocus()
-			RefreshAllPages()
-		end
+	-- Row 2: Create New Profile (from current settings)
+	local newBtn = MakeButton(content, "New Profile", 150, 24, function()
+		StaticPopup_Show("PUREFADE_NEW_PROFILE")
 	end)
-	renameBtn:SetPoint("LEFT", renameInput, "RIGHT", 8, 0)
-	y = y - 42
-
-	-- Delete Profile
-	local deleteBtn = MakeButton(content, "Delete Active Profile", 160, 24, function()
-		if ns.DeleteCurrentProfile() then
-			RefreshAllPages()
-			if ns.ForceRefresh then ns.ForceRefresh() end
-		end
-	end)
-	deleteBtn:SetPoint("TOPLEFT", content, "TOPLEFT", 4, y)
-
-	local noteFS = content:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-	noteFS:SetPoint("LEFT", deleteBtn, "RIGHT", 12, 0)
-	noteFS:SetTextColor(0.75, 0.75, 0.75)
-	noteFS:SetText("The Default profile is read-only and cannot be modified, renamed, or deleted.")
+	newBtn:SetPoint("TOPLEFT", content, "TOPLEFT", 4, y)
+	AttachTooltip(newBtn, "New Profile", "Create a new profile copied from your currently active settings.")
 	y = y - 44
 
-	-- Export / Import Profile
-	MakeSectionHeader(content, "Export / Import Profile", y)
-	y = y - 24
-
-	local expBtn = MakeButton(content, "Export Active Profile", 160, 22)
+	-- Row 3: Export & Import
+	local expBtn = MakeButton(content, "Export", 110, 24, function()
+		ShowProfileIOModal("export")
+	end)
 	expBtn:SetPoint("TOPLEFT", content, "TOPLEFT", 4, y)
+	AttachTooltip(expBtn, "Export Profile", "Opens a window with a copyable string for your currently active profile.")
 
-	local expHint = content:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-	expHint:SetPoint("LEFT", expBtn, "RIGHT", 10, 0)
-	expHint:SetTextColor(0.75, 0.75, 0.75)
-	expHint:SetText("Click Export, then press Ctrl+C to copy the profile string.")
-	y = y - 28
-
-	local ioBox = MakeEditBox(content, 550, 22)
-	ioBox:SetPoint("TOPLEFT", content, "TOPLEFT", 8, y)
-	expBtn:SetScript("OnClick", function()
-		if ns.ExportProfile then
-			local str = ns.ExportProfile()
-			ioBox:SetText(str)
-			ioBox:SetFocus()
-			ioBox:HighlightText()
-		end
+	local impBtn = MakeButton(content, "Import", 110, 24, function()
+		ShowProfileIOModal("import")
 	end)
-	y = y - 34
+	impBtn:SetPoint("LEFT", expBtn, "RIGHT", 8, 0)
+	AttachTooltip(impBtn, "Import Profile", "Opens a window to paste a PureFade profile string and save it as a new profile.")
+	y = y - 40
 
-	local impNameLabel = content:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-	impNameLabel:SetPoint("TOPLEFT", content, "TOPLEFT", 4, y - 4)
-	impNameLabel:SetWidth(160)
-	impNameLabel:SetJustifyH("LEFT")
-	impNameLabel:SetText("Import As Name:")
-
-	local impNameInput = MakeEditBox(content, 180, 22)
-	impNameInput:SetPoint("LEFT", impNameLabel, "RIGHT", 10, 0)
-
-	local impBtn = MakeButton(content, "Import String Above", 150, 22, function()
-		local str = ioBox:GetText() or ""
-		local name = impNameInput:GetText() or ""
-		if ns.ImportProfile then
-			local ok, result = ns.ImportProfile(str, name)
-			if ok then
-				ioBox:SetText("")
-				impNameInput:SetText("")
-				ioBox:ClearFocus()
-				impNameInput:ClearFocus()
-				print("|cff66ccffPureFade:|r Imported profile as '|cffffff00" .. result .. "|r'.")
-				RefreshAllPages()
-				if ns.ForceRefresh then ns.ForceRefresh() end
-			else
-				print("|cff66ccffPureFade:|r |cffff6666Import failed:|r " .. tostring(result))
-			end
-		end
-	end)
-	impBtn:SetPoint("LEFT", impNameInput, "RIGHT", 8, 0)
-
-	content:SetHeight(math.abs(y) + 46)
+	content:SetHeight(math.abs(y) + 20)
 
 	local function RefreshProfiles()
 		local active = ns.GetActiveProfileName and ns.GetActiveProfileName() or "Default"
-		activeBtn:SetText(active)
+		if activeDropdown.OverrideText then
+			activeDropdown:OverrideText(active)
+		elseif activeDropdown.SetText then
+			activeDropdown:SetText(active)
+		end
 
 		local isDefault = (active == "Default")
 		renameBtn:SetEnabled(not isDefault)
 		deleteBtn:SetEnabled(not isDefault)
-
-		activeBtn:SetScript("OnClick", function(self)
-			OpenDropdownMenu(self, function(root)
-				for _, name in ipairs(ns.GetProfileNames()) do
-					root:CreateRadio(name,
-						function() return ns.GetActiveProfileName() == name end,
-						function()
-							ns.SetProfile(name)
-							RefreshAllPages()
-							if ns.ForceRefresh then ns.ForceRefresh() end
-						end
-					)
-				end
-			end, true)
-		end)
 	end
 
 	canvas:SetScript("OnShow", RefreshProfiles)
@@ -1579,6 +1868,7 @@ local function OpenFollowMenu(owner, cfg, onChanged)
 		root:CreateRadio("Custom Rules (Independent)",
 			function() return cfg.mode == "custom" end,
 			function()
+				GuardEditable()
 				cfg.mode = "custom"
 				cfg.follow = "None"
 				onChanged()
@@ -1594,6 +1884,7 @@ local function OpenFollowMenu(owner, cfg, onChanged)
 						sub:CreateRadio(el.label,
 							function() return cfg.mode == "follow" and cfg.follow == el.key end,
 							function()
+								GuardEditable()
 								cfg.mode = "follow"
 								cfg.follow = el.key
 								onChanged()
@@ -1737,7 +2028,7 @@ local function BuildAddonsPage()
 	pickHint:SetPoint("RIGHT", toolBar, "RIGHT", 0, 0)
 	pickHint:SetJustifyH("LEFT")
 	pickHint:SetTextColor(0.75, 0.75, 0.75)
-	pickHint:SetText("Add any unsupported addon frame with 1 click (no /fstack needed).")
+	pickHint:SetText("Add any unsupported addon frame with 1 click.")
 
 	local emptyNotice = content:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 	emptyNotice:SetPoint("TOPLEFT", content, "TOPLEFT", 6, -64)
@@ -1953,6 +2244,7 @@ local function BuildAddonsPage()
 					card.modeBtn:ClearAllPoints()
 					card.modeBtn:SetPoint("RIGHT", card.delBtn, "LEFT", -6, 0)
 					card.delBtn:SetScript("OnClick", function()
+						GuardEditable()
 						db.customFrames[item.key] = nil
 						if ns.RestoreAllFrames then ns.RestoreAllFrames() end
 						if ns.ForceRefresh then ns.ForceRefresh() end
@@ -1987,16 +2279,23 @@ local function BuildAddonsPage()
 					card.customBar:Show()
 
 					local bar = card.customBar
+					local isAlways = cfg.alwaysShow and true or false
 					bar.groupBtn:SetText(cfg.group or "None")
-					bar.alwaysCB:SetChecked(cfg.alwaysShow and true or false)
+					bar.alwaysCB:SetChecked(isAlways)
 					bar.hoverCB:SetChecked(cfg.hover ~= false)
 					local trigText, trigFull = SummarizeTriggers(cfg.triggers)
 					bar.trigBtn:SetText(trigText)
-					AttachTooltip(bar.trigBtn, "Active Triggers", trigFull or "None (only fades/reveals on hover or group sync)")
+					bar.trigBtn:SetEnabled(not isAlways)
+					AttachTooltip(bar.trigBtn, "Active Triggers",
+						isAlways and "Disabled while Always Show is checked." or (trigFull or "None (only fades/reveals on hover or group sync)"))
 
 					bar.alwaysCB:SetScript("OnClick", function(self)
 						if not GuardEditable() then self:SetChecked(cfg.alwaysShow and true or false); return end
 						cfg.alwaysShow = self:GetChecked() and true or false
+						bar.trigBtn:SetEnabled(not cfg.alwaysShow)
+						local _, curFull = SummarizeTriggers(cfg.triggers)
+						AttachTooltip(bar.trigBtn, "Active Triggers",
+							cfg.alwaysShow and "Disabled while Always Show is checked." or (curFull or "None (only fades/reveals on hover or group sync)"))
 						if ns.ForceRefresh then ns.ForceRefresh() end
 					end)
 					bar.hoverCB:SetScript("OnClick", function(self)
@@ -2009,6 +2308,7 @@ local function BuildAddonsPage()
 							root:CreateRadio("None",
 								function() return (cfg.group or "None") == "None" end,
 								function()
+									GuardEditable()
 									cfg.group = "None"
 									RefreshAllPages()
 									if ns.ForceRefresh then ns.ForceRefresh() end
@@ -2021,6 +2321,7 @@ local function BuildAddonsPage()
 								root:CreateRadio(gName,
 									function() return cfg.group == gName end,
 									function()
+										GuardEditable()
 										cfg.group = gName
 										RefreshAllPages()
 										if ns.ForceRefresh then ns.ForceRefresh() end
@@ -2041,6 +2342,7 @@ local function BuildAddonsPage()
 								root:CreateCheckbox(t.label,
 									function() return cfg.triggers[t.key] and true or false end,
 									function()
+										GuardEditable()
 										cfg.triggers[t.key] = not cfg.triggers[t.key]
 										local nt, nf = SummarizeTriggers(cfg.triggers)
 										bar.trigBtn:SetText(nt)

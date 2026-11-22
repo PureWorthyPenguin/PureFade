@@ -65,12 +65,20 @@ ns.SUPPORTED_ADDONS = {
 		frames = { "RXPFrame" },
 	},
 	{
-		key = "tomtom",
+		key = "tomtom_arrow",
 		addon = "TomTom",
-		label = "TomTom Arrow & Coords",
+		label = "TomTom Crazy Arrow",
+		defaultMode = "custom",
+		defaultAlwaysShow = true,
+		frames = { "TomTomCrazyArrow" },
+	},
+	{
+		key = "tomtom_coords",
+		addon = "TomTom",
+		label = "TomTom Coordinates",
 		defaultMode = "follow",
 		defaultFollow = "minimap",
-		frames = { "TomTomCrazyArrow", "TomTomBlock" },
+		frames = { "TomTomBlock" },
 	},
 	{
 		key = "mbb",
