@@ -1,5 +1,8 @@
 # Changelog
 
+## v1.0.2
+- Enabled **In Combat** and **Enemy Targeted** triggers by default for **Micro Menu** and **Bags Bar** on the Default profile.
+
 ## v1.0.1
 - **Copy-on-Write Profiles:** Edit any setting immediately while on **Default** — your first change automatically forks into **Custom** while keeping **Default** pristine. Switching back to **Default** and editing starts fresh from **Default**.
 - **Redesigned Profiles & Groups Pages:** Switched to clean native WoW dropdowns (`Active Profile`, `Login Behavior`) and popup dialogs for Create, Rename, Delete, Export, and Import — removing always-visible text boxes. Renamed group "Members" to **Elements**, added group **Rename**, and improved card spacing.
