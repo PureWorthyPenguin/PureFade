@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.0.1
+- **Copy-on-Write Profiles:** Edit any setting immediately while on **Default** — your first change automatically forks into **Custom** while keeping **Default** pristine. Switching back to **Default** and editing starts fresh from **Default**.
+- **Redesigned Profiles & Groups Pages:** Switched to clean native WoW dropdowns (`Active Profile`, `Login Behavior`) and popup dialogs for Create, Rename, Delete, Export, and Import — removing always-visible text boxes. Renamed group "Members" to **Elements**, added group **Rename**, and improved card spacing.
+- **Dead / Ghost Fade & Ghost Debuff Filter:** Added **Suppress automatic triggers while Dead / Ghost** (enabled by default) and filtered out the **Ghost** debuff (`spellId 8326`) from *Has Any Debuff*, keeping corpse runs clean and hover-only while preserving chat peeks and Always Show elements.
+- **TomTom Split:** Split TomTom into independent **TomTom Crazy Arrow** (Always Show by default) and **TomTom Coordinates** (Follow: Minimap).
+- **Elements Visual Frame Picker:** Replaced the manual `/fstack` text box on the **Elements** page with the 1-click **Pick Frame on Screen** button plus an optional **Add by Name** popup.
+- **UI & Quality-of-Life Polish:**
+  - Swapped Addon Compartment clicks: **Left-Click** to Pause/Resume, **Right-Click** to Open Settings.
+  - Disabled the **Show When (Triggers)** button whenever **Always** is checked (saved triggers are preserved if unchecked).
+  - Tuned Default profile defaults: **Quest Peek** `6s`, **Minimap Ping Peek** `5s`, and **Reveal Bags Bar when Bags are open** off by default.
+
 ## v1.0.0
 - Initial public release of **PureFade** for World of Warcraft Forever (`16001`).
 - Zero-dependency, combat-safe UI fading engine with smooth fade-in, separate Combat Fade-In Duration, fade-out, hover hold, and configurable Mouseover Buffer reach.

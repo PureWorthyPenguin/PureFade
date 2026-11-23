@@ -11,10 +11,10 @@
   - **Vitals:** Health Not Full, Power Not Full (including Rage/Runic Power draining), Pet Health Not Full, Pet Not Happy (Hunter), Has Any Debuff, Short / Expiring Buffs.
   - **Context & Minimap:** Group/Raid, Instance, City/Resting, Open World, Casting, Mounted, Flight Path, Tracking Active, Unread Mail, Indoors, Minimap Ping.
   - **Smart Peeks:** In-place **Single-Buff Peek** (only newly gained/refreshed or expiring buffs appear in place), **New Chat Message Peek** (clean active-tab overlay without background box), and **Quest Progress / Change Peek**.
-- **QoL Auto-Reveals:** Automatically reveals relevant frames when opening your Spellbook, dragging abilities/items, opening Bags, or typing in Chat.
+- **QoL Auto-Reveals & Corpse-Run Cleanliness:** Automatically reveals relevant frames when opening your Spellbook, dragging abilities/items, opening Bags, or typing in Chat — and suppresses automatic triggers while Dead / Ghost (ignoring the Ghost debuff) so corpse runs stay clean and hover-only.
 - **Groups & Hover Buffer:** Link elements into groups (e.g. Action Bars, Unit Frames, Minimap) so hovering one reveals the whole group, with adjustable Mouseover Buffer reach.
-- **3rd-Party Addon Support + Visual Frame Picker:** Built-in support for **Bartender4** (per-bar), **Questie**, **Details!**, **RXPGuides**, **TomTom**, **MinimapButtonButton**, **Titan Panel**, **RareScanner**, **HealBot**, **BigWigs**, and **DBM** — plus a 1-click **Frame Picker** to manage any other addon frame.
-- **Profiles & Sharing:** Per-character profiles, an immutable read-only **Default** profile, and **Export / Import (`PF1:...`)** strings to share setups.
+- **3rd-Party Addon Support + Visual Frame Picker:** Built-in support for **Bartender4** (per-bar), **Questie**, **Details!**, **RXPGuides**, **TomTom** (independent Crazy Arrow & Coordinates), **MinimapButtonButton**, **Titan Panel**, **RareScanner**, **HealBot**, **BigWigs**, and **DBM** — plus a 1-click **Pick Frame on Screen** button on both Elements and Addons pages.
+- **Profiles & Sharing:** Per-character profiles, a pristine **Default** profile (editing automatically saves to **Custom**), and popup **Export / Import (`PF1:...`)** strings to share setups.
 
 ## Slash Commands
 

@@ -7,6 +7,7 @@ local pageCanvases = {}
 local refreshCallbacks = {}
 local generalSearchItems = {}
 local focusElementCallback -- set by BuildElementsPage to jump to & highlight a row
+local focusAddonCallback   -- set by BuildAddonsPage to jump to & highlight a card
 
 local function RefreshAllPages()
 	for _, fn in ipairs(refreshCallbacks) do
@@ -583,6 +584,59 @@ StaticPopupDialogs["PUREFADE_RENAME_GROUP"] = {
 	preferredIndex = 3,
 }
 
+StaticPopupDialogs["PUREFADE_ADD_CUSTOM_FRAME"] = {
+	text = "Enter a global frame name to manage\n(e.g. from /fstack for hidden or non-clickable frames):",
+	button1 = "Add",
+	button2 = CANCEL,
+	hasEditBox = true,
+	maxLetters = 80,
+	OnShow = function(self)
+		local eb = self.EditBox or self.editBox
+		if eb then
+			eb:SetText("")
+			eb:SetFocus()
+		end
+	end,
+	OnAccept = function(self)
+		local eb = self.EditBox or self.editBox
+		local name = strtrim((eb and eb:GetText()) or "")
+		if name == "" then return end
+		if ns.IsReadOnlyProfile and ns.IsReadOnlyProfile() and ns.EnsureEditableProfile then
+			ns.EnsureEditableProfile()
+		end
+		local db = ns.GetDB()
+		if not db then return end
+		db.customFrames = db.customFrames or {}
+		if not db.customFrames[name] then
+			db.customFrames[name] = {
+				mode = "custom",
+				follow = "None",
+				group = "None",
+				alwaysShow = false,
+				hover = true,
+				triggers = {},
+			}
+		end
+		if ns.ForceRefresh then ns.ForceRefresh() end
+		RefreshAllPages()
+		if focusElementCallback then
+			focusElementCallback("custom", name)
+		end
+	end,
+	EditBoxOnEnterPressed = function(self)
+		local parent = self:GetParent()
+		local btn = parent.button1 or (parent.ButtonContainer and parent.ButtonContainer.Button1)
+		if btn and btn:IsEnabled() then btn:Click() end
+	end,
+	EditBoxOnEscapePressed = function(self)
+		self:GetParent():Hide()
+	end,
+	timeout = 0,
+	whileDead = true,
+	hideOnEscape = true,
+	preferredIndex = 3,
+}
+
 local function GuardEditable()
 	if ns.IsReadOnlyProfile and ns.IsReadOnlyProfile() and ns.EnsureEditableProfile then
 		local _, switched = ns.EnsureEditableProfile()
@@ -591,6 +645,61 @@ local function GuardEditable()
 		end
 	end
 	return true
+end
+
+local function LaunchFramePicker(returnPage)
+	if not ns.StartFramePicker then return end
+	ns.StartFramePicker(function(frameName, existingOwner)
+		if existingOwner then
+			print("|cff66ccffPureFade:|r '|cffffff00" .. existingOwner.label .. "|r' is already managed — opening its settings.")
+			if existingOwner.kind == "element" then
+				OpenPage("elements")
+				if focusElementCallback then
+					focusElementCallback(existingOwner.category, existingOwner.key)
+				end
+			else
+				OpenPage("addons")
+				RefreshAllPages()
+				if focusAddonCallback then
+					focusAddonCallback(existingOwner.key)
+				end
+			end
+			return
+		end
+		if frameName and frameName ~= "" then
+			GuardEditable()
+			local db = ns.GetDB()
+			db.customFrames = db.customFrames or {}
+			if not db.customFrames[frameName] then
+				db.customFrames[frameName] = {
+					mode = "custom",
+					follow = "None",
+					group = "None",
+					alwaysShow = false,
+					hover = true,
+					triggers = {},
+				}
+			end
+			if ns.ForceRefresh then ns.ForceRefresh() end
+			print("|cff66ccffPureFade:|r Added frame '|cffffff00" .. frameName .. "|r'.")
+			if returnPage == "elements" then
+				OpenPage("elements")
+				RefreshAllPages()
+				if focusElementCallback then
+					focusElementCallback("custom", frameName)
+				end
+			else
+				OpenPage("addons")
+				RefreshAllPages()
+				if focusAddonCallback then
+					focusAddonCallback(frameName)
+				end
+			end
+		else
+			OpenPage(returnPage or "addons")
+			RefreshAllPages()
+		end
+	end)
 end
 
 -- Native Blizzard-styled checkbox
@@ -1087,18 +1196,30 @@ local function BuildElementsPage()
 	ColHeader("Hover", 356, 44)
 	ColHeader("Show When (Triggers)", 406, 175)
 
-	-- Bottom bar for adding custom /fstack frames
+	-- Bottom bar: 1-click Visual Frame Picker + optional Add by Name popup
 	local bottomBar = CreateFrame("Frame", nil, canvas)
 	bottomBar:SetPoint("BOTTOMLEFT", canvas, "BOTTOMLEFT", 16, 10)
 	bottomBar:SetPoint("BOTTOMRIGHT", canvas, "BOTTOMRIGHT", -24, 10)
 	bottomBar:SetHeight(28)
 
-	local customLabel = bottomBar:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-	customLabel:SetPoint("LEFT", bottomBar, "LEFT", 0, 0)
-	customLabel:SetText("Add Custom Frame (/fstack name):")
+	local pickElBtn = MakeButton(bottomBar, "Pick Frame on Screen", 165, 24, function()
+		LaunchFramePicker("elements")
+	end)
+	pickElBtn:SetPoint("LEFT", bottomBar, "LEFT", 0, 0)
+	AttachTooltip(pickElBtn, "Pick Frame on Screen", "Hides Settings so you can hover over any UI frame and Left-Click to add it or jump straight to its settings.")
 
-	local customInput = MakeEditBox(bottomBar, 180, 22)
-	customInput:SetPoint("LEFT", customLabel, "RIGHT", 10, 0)
+	local addByNameBtn = MakeButton(bottomBar, "Add by Name", 105, 24, function()
+		StaticPopup_Show("PUREFADE_ADD_CUSTOM_FRAME")
+	end)
+	addByNameBtn:SetPoint("LEFT", pickElBtn, "RIGHT", 8, 0)
+	AttachTooltip(addByNameBtn, "Add Frame by Name", "Manually add a custom frame by its global frame name (useful for hidden or non-clickable frames).")
+
+	local pickElHint = bottomBar:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	pickElHint:SetPoint("LEFT", addByNameBtn, "RIGHT", 10, 0)
+	pickElHint:SetPoint("RIGHT", bottomBar, "RIGHT", 0, 0)
+	pickElHint:SetJustifyH("LEFT")
+	pickElHint:SetTextColor(0.75, 0.75, 0.75)
+	pickElHint:SetText("Click any frame on screen to manage or jump to it.")
 
 	-- Reposition scroll frame between headerBar and bottomBar
 	canvas.scroll:ClearAllPoints()
@@ -1106,23 +1227,6 @@ local function BuildElementsPage()
 	canvas.scroll:SetPoint("BOTTOMRIGHT", bottomBar, "TOPRIGHT", -8, 8)
 
 	local RefreshList
-
-	local addBtn = MakeButton(bottomBar, "Add", 64, 22, function()
-		if not GuardEditable() then return end
-		local name = strtrim(customInput:GetText() or "")
-		if name == "" then return end
-		local db = ns.GetDB()
-		db.customFrames = db.customFrames or {}
-		if not db.customFrames[name] then
-			db.customFrames[name] = { group = "None", alwaysShow = false, hover = true, triggers = {} }
-		end
-		customInput:SetText("")
-		customInput:ClearFocus()
-		activeCategory = "custom"
-		if ns.ForceRefresh then ns.ForceRefresh() end
-		RefreshList()
-	end)
-	addBtn:SetPoint("LEFT", customInput, "RIGHT", 8, 0)
 
 	-- Build category filter buttons (2 compact rows if needed)
 	local cx, cy = 0, 0
@@ -1973,52 +2077,15 @@ local function BuildAddonsPage()
 		end)
 	end
 
+	focusAddonCallback = FocusAddonCard
+
 	-- Top toolbar inside content: Pick Frame on Screen
 	local toolBar = CreateFrame("Frame", nil, content)
 	toolBar:SetPoint("TOPLEFT", content, "TOPLEFT", 4, -4)
 	toolBar:SetSize(565, 30)
 
 	local pickBtn = MakeButton(toolBar, "Pick Frame on Screen", 165, 24, function()
-		if ns.StartFramePicker then
-			ns.StartFramePicker(function(frameName, existingOwner)
-				if existingOwner then
-					print("|cff66ccffPureFade:|r '|cffffff00" .. existingOwner.label .. "|r' is already managed — opening its settings.")
-					if existingOwner.kind == "element" then
-						OpenPage("elements")
-						if focusElementCallback then
-							focusElementCallback(existingOwner.category, existingOwner.key)
-						end
-					else
-						OpenPage("addons")
-						RefreshAllPages()
-						FocusAddonCard(existingOwner.key)
-					end
-					return
-				end
-				if frameName and frameName ~= "" then
-					local db = ns.GetDB()
-					db.customFrames = db.customFrames or {}
-					if not db.customFrames[frameName] then
-						db.customFrames[frameName] = {
-							mode = "custom",
-							follow = "None",
-							group = "None",
-							alwaysShow = false,
-							hover = true,
-							triggers = {},
-						}
-					end
-					if ns.ForceRefresh then ns.ForceRefresh() end
-					print("|cff66ccffPureFade:|r Added frame '|cffffff00" .. frameName .. "|r'.")
-					OpenPage("addons")
-					RefreshAllPages()
-					FocusAddonCard(frameName)
-				else
-					OpenPage("addons")
-					RefreshAllPages()
-				end
-			end)
-		end
+		LaunchFramePicker("addons")
 	end)
 	pickBtn:SetPoint("LEFT", toolBar, "LEFT", 0, 0)
 	AttachTooltip(pickBtn, "Pick Frame on Screen", "Hides Settings so you can hover over any unsupported addon frame and Left-Click to add it to PureFade.")
