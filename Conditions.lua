@@ -800,7 +800,7 @@ local currentFlags = {}
 function ns.EvaluateConditions(now)
 	local db = ns.GetDB and ns.GetDB()
 	local hpThresh = ((db and db.healthThreshold) or 100) / 100
-	local powThresh = ((db and db.powerThreshold) or 100) / 100
+	local powThresh = ((db and db.powerThreshold) or 90) / 100
 
 	-- Core: Combat (+ Combat Fade-Out Delay)
 	local fighting = state.inCombat or (InCombatLockdown and InCombatLockdown()) or SafeBool(UnitAffectingCombat("player"))

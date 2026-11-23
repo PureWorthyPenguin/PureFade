@@ -1488,7 +1488,7 @@ local function BuildGroupsPage()
 	local rowPool = {}
 	local RefreshGroups
 
-	-- Top Create Group button (opens popup)
+	-- Top bar: Create Group button + UI Layout preset selector
 	local createBtn = MakeButton(content, "Create Group", 120, 24, function()
 		StaticPopup_Show("PUREFADE_NEW_GROUP")
 	end)
@@ -1518,6 +1518,78 @@ local function BuildGroupsPage()
 		end
 		return members
 	end
+
+	local function GetCurrentUILayout(db)
+		local microG = db and db.elements and db.elements.micro and db.elements.micro.group
+		local bagsG = db and db.elements and db.elements.bags and db.elements.bags.group
+		if microG == "Action Bars" and bagsG == "Action Bars" then
+			return "blizzard"
+		elseif microG == "Menu & Bags" and bagsG == "Menu & Bags" then
+			return "separated"
+		end
+		return "custom"
+	end
+
+	local function ApplyUILayout(mode)
+		GuardEditable()
+		local db = ns.GetDB()
+		if not db then return end
+		db.groups = db.groups or {}
+		db.elements = db.elements or {}
+		db.elements.micro = db.elements.micro or { group = "None", alwaysShow = false, hover = true, triggers = {} }
+		db.elements.bags = db.elements.bags or { group = "None", alwaysShow = false, hover = true, triggers = {} }
+
+		if mode == "blizzard" then
+			db.groups["Action Bars"] = db.groups["Action Bars"] or { syncMode = "all" }
+			db.groups["Action Bars"].syncMode = "all"
+			db.elements.micro.group = "Action Bars"
+			db.elements.bags.group = "Action Bars"
+			if db.groups["Menu & Bags"] and #GetGroupMembers(db, "Menu & Bags") == 0 then
+				db.groups["Menu & Bags"] = nil
+			end
+		elseif mode == "separated" then
+			db.groups["Menu & Bags"] = db.groups["Menu & Bags"] or { syncMode = "hover" }
+			db.groups["Menu & Bags"].syncMode = "hover"
+			db.elements.micro.group = "Menu & Bags"
+			db.elements.bags.group = "Menu & Bags"
+		end
+		RefreshAllPages()
+		if ns.ForceRefresh then ns.ForceRefresh() end
+	end
+
+	local layoutLabel = content:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+	layoutLabel:SetPoint("LEFT", createBtn, "RIGHT", 24, 0)
+	layoutLabel:SetText("UI Layout:")
+
+	local function BuildLayoutMenu(root)
+		root:CreateRadio("Blizzard Default UI",
+			function() return GetCurrentUILayout(ns.GetDB()) == "blizzard" end,
+			function() ApplyUILayout("blizzard") end
+		)
+		root:CreateRadio("Separated Menu & Bags (Custom UI)",
+			function() return GetCurrentUILayout(ns.GetDB()) == "separated" end,
+			function() ApplyUILayout("separated") end
+		)
+	end
+
+	local layoutDropdown
+	local okLD, ld = pcall(CreateFrame, "DropdownButton", nil, content, "WowStyle1DropdownTemplate")
+	if okLD and ld and ld.SetupMenu then
+		ld:SetWidth(210)
+		ld:SetPoint("LEFT", layoutLabel, "RIGHT", 8, 0)
+		ld:SetupMenu(function(_, root)
+			BuildLayoutMenu(root)
+		end)
+		layoutDropdown = ld
+	else
+		local fallbackBtn = MakeButton(content, "Blizzard Default UI", 210, 24, function(self)
+			OpenDropdownMenu(self, BuildLayoutMenu)
+		end)
+		fallbackBtn:SetPoint("LEFT", layoutLabel, "RIGHT", 8, 0)
+		layoutDropdown = fallbackBtn
+	end
+	AttachTooltip(layoutDropdown, "UI Layout Preset",
+		"Blizzard Default UI: keeps Micro Menu & Bags Bar inside Action Bars so the bottom bar reveals as one piece.\n\nSeparated Menu & Bags: moves Micro Menu & Bags Bar into their own Hover-Only group (ideal for Edit Mode or Bartender4 corner layouts).")
 
 	local function OpenGroupMembersMenu(owner, db, groupName)
 		OpenDropdownMenu(owner, function(root)
@@ -1611,7 +1683,7 @@ local function BuildGroupsPage()
 		card.renameBtn = MakeButton(card, "Rename", 76, 20)
 		card.renameBtn:SetPoint("RIGHT", card.delBtn, "LEFT", -4, 0)
 
-		card.modeBtn = MakeButton(card, "", 156, 20)
+		card.modeBtn = MakeButton(card, "", 176, 20)
 		card.modeBtn:SetPoint("RIGHT", card.renameBtn, "LEFT", -4, 0)
 
 		card.membersBtn = MakeButton(card, "Elements", 78, 20)
@@ -1635,6 +1707,15 @@ local function BuildGroupsPage()
 	RefreshGroups = function()
 		local db = ns.GetDB()
 		if not db then return end
+
+		local curLayout = GetCurrentUILayout(db)
+		local layoutText = curLayout == "blizzard" and "Blizzard Default UI"
+			or (curLayout == "separated" and "Separated Menu & Bags" or "Custom")
+		if layoutDropdown.OverrideText then
+			layoutDropdown:OverrideText(layoutText)
+		elseif layoutDropdown.SetText then
+			layoutDropdown:SetText(layoutText)
+		end
 
 		local gNames = {}
 		for name in pairs(db.groups or {}) do

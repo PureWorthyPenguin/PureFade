@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.0.3
+- **UI Layout Preset (Groups Page):** Added a 1-click **UI Layout** selector (**Blizzard Default UI** vs. **Separated Menu & Bags (Custom UI)**) to switch Micro Menu & Bags Bar between the unified Blizzard bottom bar and a dedicated Hover-Only corner group (works automatically with Edit Mode and Bartender4).
+- **Action Bars Group Sync:** Switched the **Action Bars** default group to **Sync: Hover + Triggers** and cleared standalone Combat/Target triggers from **Micro Menu** and **Bags Bar** so they reveal cleanly with the Blizzard bottom bar and become hover-only as soon as unlinked.
+- **Default Profile Polish:**
+  - Set **Power Not Full** threshold to `< 90%` by default so casting a buff or two won't reveal the Player Frame.
+  - Set **Focus Frame** and **Focus Target** to **Always** by default (matching Target Frame).
+  - Widened the group sync button on the **Groups** page so `Sync: Hover + Triggers` displays without truncation.
+
 ## v1.0.2
 - Enabled **In Combat** and **Enemy Targeted** triggers by default for **Micro Menu** and **Bags Bar** on the Default profile.
 

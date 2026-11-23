@@ -171,10 +171,10 @@ ns.ELEMENTS = {
 		defaultTriggers = { combat = true, enemyTarget = true, friendlyTarget = true } },
 	{ key = "focus",       label = "Focus Frame",                 category = "units", defaultGroup = "Unit Frames",
 		frames = { "FocusFrame" },
-		defaultTriggers = { combat = true, enemyTarget = true } },
+		defaultAlwaysShow = true, defaultTriggers = {} },
 	{ key = "focustot",    label = "Focus Target",                category = "units", defaultGroup = "Unit Frames",
 		frames = { "FocusFrameToT" },
-		defaultTriggers = { combat = true, enemyTarget = true } },
+		defaultAlwaysShow = true, defaultTriggers = {} },
 
 	-- Group & PvP
 	{ key = "party",       label = "Party Frames",                category = "group", defaultGroup = "None",
@@ -276,10 +276,10 @@ ns.ELEMENTS = {
 		defaultAlwaysShow = true, defaultTriggers = {} },
 	{ key = "micro",       label = "Micro Menu",                  category = "interface", defaultGroup = "Action Bars",
 		frames = { "MicroButtonAndBagsBar", "MicroMenuContainer" },
-		defaultTriggers = { combat = true, enemyTarget = true } },
+		defaultTriggers = {} },
 	{ key = "bags",        label = "Bags Bar",                    category = "interface", defaultGroup = "Action Bars",
 		frames = { "BagsBar" },
-		defaultTriggers = { combat = true, enemyTarget = true } },
+		defaultTriggers = {} },
 	{ key = "xp",          label = "XP & Reputation Bars",        category = "interface", defaultGroup = "Action Bars",
 		frames = { "MainStatusTrackingBarContainer", "SecondaryStatusTrackingBarContainer", "StatusTrackingBarManager" },
 		defaultTriggers = { combat = true, enemyTarget = true } },
@@ -322,7 +322,7 @@ function ns.BuildDefaultGeneral()
 		questPeekDuration = 6,   -- seconds quest tracker stays visible on quest progress/change
 		minimapPingDuration = 5, -- seconds minimap stays visible on ping
 		healthThreshold = 100,   -- % below which Health Not Full triggers (100 = any missing HP)
-		powerThreshold = 100,    -- % below which Power Not Full triggers (100 = any missing power)
+		powerThreshold = 90,     -- % below which Power Not Full triggers (90 = ignores minor buff casts)
 		buffExpiringThreshold = 90, -- seconds remaining below which Short / Expiring Buff triggers (90 = 1m 30s)
 		-- QoL Interaction triggers
 		qolSpellbook = true,     -- Spellbook / Macros open -> Action Bars
@@ -337,7 +337,7 @@ end
 
 function ns.BuildDefaultGroups()
 	return {
-		["Action Bars"] = { syncMode = "hover" }, -- "all" (Hover + Triggers) or "hover" (Hover Only)
+		["Action Bars"] = { syncMode = "all" },   -- "all" (Hover + Triggers) or "hover" (Hover Only)
 		["Side Bars"]   = { syncMode = "hover" },
 		["Extra Bars"]  = { syncMode = "hover" },
 		["Minimap"]     = { syncMode = "hover" },
