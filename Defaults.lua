@@ -168,7 +168,7 @@ ns.ELEMENTS = {
 		defaultAlwaysShow = true, defaultTriggers = {} },
 	{ key = "tot",         label = "Target of Target",            category = "units", defaultGroup = "Unit Frames",
 		frames = { "TargetFrameToT" },
-		defaultTriggers = { combat = true, enemyTarget = true, friendlyTarget = true } },
+		defaultAlwaysShow = true, defaultTriggers = {} },
 	{ key = "focus",       label = "Focus Frame",                 category = "units", defaultGroup = "Unit Frames",
 		frames = { "FocusFrame" },
 		defaultAlwaysShow = true, defaultTriggers = {} },

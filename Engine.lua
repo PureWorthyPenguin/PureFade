@@ -53,6 +53,7 @@ local lastDriftCheckAt = 0
 
 -- Cached target alphas for per-frame smooth interpolation
 local frameTargetAlpha = {}   -- [frame] = target alpha (0..1)
+local secretCurveFrames = {}  -- [frame] = cfg.triggers when alpha is driven by Blizzard's secret vital LuaCurve
 local activeFrames = {}       -- list of all currently managed frames
 
 -- Minimap arrow/icon sync & indoor stale-canvas refresh:
@@ -925,7 +926,26 @@ local function EvaluateTargets(now)
 						maxChatAlpha = curA
 					end
 				end
-				frameTargetAlpha[f] = frameShow and 1.0 or fadedAlpha
+				if not frameShow and ns.NeedsSecretVitalCurve and ns.NeedsSecretVitalCurve(cfg.triggers, db) then
+					secretCurveFrames[f] = cfg.triggers
+					frameTargetAlpha[f] = fadedAlpha
+					local curA = frameAlpha[f]
+					if curA == nil then
+						curA = fadedAlpha
+						frameAlpha[f] = curA
+					end
+					if math.abs(curA - fadedAlpha) <= 0.001 then
+						ns.ApplySecretVitalAlpha(f, cfg.triggers, db, now, nil)
+					end
+				else
+					if secretCurveFrames[f] then
+						secretCurveFrames[f] = nil
+						if frameShow then
+							frameAlpha[f] = fadedAlpha
+						end
+					end
+					frameTargetAlpha[f] = frameShow and 1.0 or fadedAlpha
+				end
 			end
 		end
 	end
@@ -1010,6 +1030,7 @@ local function OnUpdate(_, elapsed)
 				frameAlpha[f] = cur
 			end
 
+			local secretTrigs = secretCurveFrames[f]
 			if math.abs(cur - target) > 0.001 then
 				local nextAlpha
 				if target > cur then
@@ -1025,8 +1046,13 @@ local function OnUpdate(_, elapsed)
 						nextAlpha = math.max(target, cur - (elapsed / fadeOutTime))
 					end
 				end
-				ApplyFrameAlpha(f, nextAlpha, frameElementKey[f])
-			elseif checkDrift then
+				if secretTrigs and ns.ApplySecretVitalAlpha then
+					frameAlpha[f] = nextAlpha
+					ns.ApplySecretVitalAlpha(f, secretTrigs, db, now, nextAlpha)
+				else
+					ApplyFrameAlpha(f, nextAlpha, frameElementKey[f])
+				end
+			elseif checkDrift and not secretTrigs then
 				-- Guard against Blizzard or another addon resetting a frame's alpha behind our back
 				local realAlpha = SafeNumber(f:GetAlpha())
 				if realAlpha ~= nil and math.abs(realAlpha - target) > 0.02 then

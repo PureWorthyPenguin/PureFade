@@ -60,6 +60,12 @@ local state = {
 	lastHealthChange = -100,
 	lastPowerChange = -100,
 	lastPetHealthChange = -100,
+	lastZoneChange = -100,
+	healthSecret = false,
+	powerSecret = false,
+	petHealthSecret = false,
+	powerType = 0,
+	powerEmptyAtRest = false,
 	trackingDirty = true,
 	trackingActive = false,
 }
@@ -218,6 +224,8 @@ RegisterSafeEvent(eventFrame, "PLAYER_REGEN_ENABLED")
 RegisterSafeEvent(eventFrame, "MINIMAP_PING")
 RegisterSafeEvent(eventFrame, "MINIMAP_UPDATE_TRACKING")
 RegisterSafeEvent(eventFrame, "PLAYER_ENTERING_WORLD")
+RegisterSafeEvent(eventFrame, "ZONE_CHANGED_NEW_AREA")
+RegisterSafeEvent(eventFrame, "ZONE_CHANGED")
 RegisterSafeEvent(eventFrame, "QUEST_ACCEPTED")
 RegisterSafeEvent(eventFrame, "QUEST_REMOVED")
 RegisterSafeEvent(eventFrame, "QUEST_TURNED_IN")
@@ -262,10 +270,21 @@ eventFrame:SetScript("OnEvent", function(_, event, unit, arg2)
 			questSnapReady = false
 			CheckQuestSnapshotChanged()
 		end
-	elseif event == "QUEST_ACCEPTED" or event == "QUEST_REMOVED"
-		or event == "QUEST_TURNED_IN" or event == "QUEST_WATCH_LIST_CHANGED" then
+	elseif event == "ZONE_CHANGED_NEW_AREA" or event == "ZONE_CHANGED" then
+		state.lastZoneChange = now
+	elseif event == "QUEST_ACCEPTED" or event == "QUEST_REMOVED" or event == "QUEST_TURNED_IN" then
 		CheckQuestSnapshotChanged()
 		if now >= state.questReadyAt then
+			local dur = db and db.questPeekDuration or 6
+			if dur > 0 then
+				state.questPeekUntil = now + dur
+			end
+		end
+	elseif event == "QUEST_WATCH_LIST_CHANGED" then
+		CheckQuestSnapshotChanged()
+		-- Only peek on explicit single-quest track/untrack outside zone transitions
+		-- (ignores automatic zone-entry watch list refreshes from Blizzard / Questie)
+		if unit ~= nil and now >= state.questReadyAt and (now - state.lastZoneChange) > 2.0 then
 			local dur = db and db.questPeekDuration or 6
 			if dur > 0 then
 				state.questPeekUntil = now + dur
@@ -794,6 +813,146 @@ function ns.IsChatTyping()
 	return ChatEdit_GetActiveWindow and ChatEdit_GetActiveWindow() ~= nil or false
 end
 
+-- Native Blizzard LuaCurve cache for exact Health/Power/Pet threshold fading when values are secret on WoW Forever
+local vitalCurveCache = {}
+local function GetVitalCurve(threshold, floorAlpha, inverted)
+	if not (C_CurveUtil and C_CurveUtil.CreateCurve and Enum and Enum.LuaCurveType) then
+		return nil
+	end
+	local floor = floorAlpha or 0
+	local share = math.min(math.max(threshold or 1, 0.01), 0.999)
+	local key = (inverted and "I:" or "N:") .. ("%.4f:%.4f"):format(share, floor)
+	if vitalCurveCache[key] ~= nil then
+		return vitalCurveCache[key] or nil
+	end
+	local ok, curve = pcall(C_CurveUtil.CreateCurve)
+	if ok and curve then
+		curve:SetType(Enum.LuaCurveType.Linear)
+		if inverted then
+			-- Rage / Runic Power: faded at 0%, visible above 0%
+			curve:AddPoint(0, floor)
+			curve:AddPoint(0.0001, 1)
+			curve:AddPoint(1, 1)
+		else
+			-- Crisp step at exact threshold (eliminates half-alpha pauses between regen ticks)
+			curve:AddPoint(0, 1)
+			curve:AddPoint(math.max(0, share - 0.0001), 1)
+			curve:AddPoint(share, floor)
+			curve:AddPoint(1, floor)
+		end
+		vitalCurveCache[key] = curve
+	else
+		vitalCurveCache[key] = false
+	end
+	return vitalCurveCache[key] or nil
+end
+
+local dynamicVitalCurve = nil
+local function GetDynamicVitalCurve(threshold, floorAlpha, inverted)
+	if not (C_CurveUtil and C_CurveUtil.CreateCurve and Enum and Enum.LuaCurveType) then
+		return nil
+	end
+	local curve = dynamicVitalCurve
+	if curve and curve.ClearPoints then
+		curve:ClearPoints()
+	else
+		local ok, created = pcall(C_CurveUtil.CreateCurve)
+		if not ok or not created then return nil end
+		curve = created
+		if curve.ClearPoints then
+			dynamicVitalCurve = curve
+		end
+	end
+	local floor = floorAlpha or 0
+	local share = math.min(math.max(threshold or 1, 0.01), 0.999)
+	curve:SetType(Enum.LuaCurveType.Linear)
+	if inverted then
+		curve:AddPoint(0, floor)
+		curve:AddPoint(0.0001, 1)
+		curve:AddPoint(1, 1)
+	else
+		curve:AddPoint(0, 1)
+		curve:AddPoint(math.max(0, share - 0.0001), 1)
+		curve:AddPoint(share, floor)
+		curve:AddPoint(1, floor)
+	end
+	return curve
+end
+
+local function CanUseSecretVitalCurves()
+	return C_CurveUtil ~= nil and C_CurveUtil.CreateCurve ~= nil
+		and Enum ~= nil and Enum.LuaCurveType ~= nil
+		and UnitHealthPercent ~= nil and UnitPowerPercent ~= nil
+end
+
+function ns.NeedsSecretVitalCurve(triggers, db)
+	if not triggers or not CanUseSecretVitalCurves() then
+		return false
+	end
+	if (not db or db.fadeWhenDead ~= false) and SafeBool(UnitIsDeadOrGhost("player")) then
+		return false
+	end
+	return (triggers.healthNotFull and state.healthSecret)
+		or (triggers.powerNotFull and state.powerSecret)
+		or (triggers.petHealth and state.petHealthSecret and SafeBool(UnitExists("pet")))
+		or false
+end
+
+function ns.ApplySecretVitalAlpha(frame, triggers, db, now, floorOverride)
+	if not ns.NeedsSecretVitalCurve(triggers, db) then
+		return false
+	end
+	local wantHealth = triggers.healthNotFull and state.healthSecret
+	local wantPower = triggers.powerNotFull and state.powerSecret
+	local wantPet = triggers.petHealth and state.petHealthSecret and SafeBool(UnitExists("pet"))
+	local fadedAlpha = (db and db.fadedAlpha) or 0
+	local useDynamic = (floorOverride ~= nil and math.abs(floorOverride - fadedAlpha) > 0.001)
+	local floor = useDynamic and floorOverride or fadedAlpha
+
+	if wantPet and not wantHealth and not wantPower then
+		local hpThresh = ((db and db.healthThreshold) or 100) / 100
+		local curve = useDynamic and GetDynamicVitalCurve(hpThresh, floor, false) or GetVitalCurve(hpThresh, floor, false)
+		if curve then
+			local ok = pcall(frame.SetAlpha, frame, UnitHealthPercent("pet", true, curve))
+			if ok then return true end
+		end
+	end
+
+	-- If BOTH health and power ticked within the last 2.5s (e.g. both regenerating after combat),
+	-- hold solid 1.0 during the handoff so HP reaching 100% never blinks out while Mana is still low.
+	if wantHealth and wantPower and (now - state.lastHealthChange) < 2.5 and (now - state.lastPowerChange) < 2.5 then
+		local ok = pcall(frame.SetAlpha, frame, 1.0)
+		if ok then return true end
+	end
+
+	-- Pick Health curve when Health changed more recently than Power (prevents 4s curve-swap flicker)
+	if wantHealth and (not wantPower or state.lastHealthChange >= state.lastPowerChange) then
+		local hpThresh = ((db and db.healthThreshold) or 100) / 100
+		local curve = useDynamic and GetDynamicVitalCurve(hpThresh, floor, false) or GetVitalCurve(hpThresh, floor, false)
+		if curve then
+			local ok = pcall(frame.SetAlpha, frame, UnitHealthPercent("player", true, curve))
+			if ok then return true end
+		end
+	end
+	if wantPower then
+		local powThresh = ((db and db.powerThreshold) or 90) / 100
+		local curve = useDynamic and GetDynamicVitalCurve(powThresh, floor, state.powerEmptyAtRest) or GetVitalCurve(powThresh, floor, state.powerEmptyAtRest)
+		if curve then
+			local ok = pcall(frame.SetAlpha, frame, UnitPowerPercent("player", state.powerType or 0, false, curve))
+			if ok then return true end
+		end
+	end
+	if wantPet then
+		local hpThresh = ((db and db.healthThreshold) or 100) / 100
+		local curve = useDynamic and GetDynamicVitalCurve(hpThresh, floor, false) or GetVitalCurve(hpThresh, floor, false)
+		if curve then
+			local ok = pcall(frame.SetAlpha, frame, UnitHealthPercent("pet", true, curve))
+			if ok then return true end
+		end
+	end
+	return false
+end
+
 -- Evaluate all trigger flags once per engine tick (fast, zero allocations)
 local currentFlags = {}
 
@@ -801,6 +960,7 @@ function ns.EvaluateConditions(now)
 	local db = ns.GetDB and ns.GetDB()
 	local hpThresh = ((db and db.healthThreshold) or 100) / 100
 	local powThresh = ((db and db.powerThreshold) or 90) / 100
+	local useCurves = CanUseSecretVitalCurves()
 
 	-- Core: Combat (+ Combat Fade-Out Delay)
 	local fighting = state.inCombat or (InCombatLockdown and InCombatLockdown()) or SafeBool(UnitAffectingCombat("player"))
@@ -820,52 +980,63 @@ function ns.EvaluateConditions(now)
 		currentFlags.friendlyTarget = false
 	end
 
-	-- Vitals: Health Not Full (secret-value safe)
+	-- Vitals: Health Not Full (uses native LuaCurve when secret on WoW Forever)
 	local hp = SafeNumber(UnitHealth("player"))
 	local hpMax = SafeNumber(UnitHealthMax("player"))
 	if hp and hpMax and hpMax > 0 then
+		state.healthSecret = false
 		currentFlags.healthNotFull = (hp / hpMax) < (hpThresh - 0.0001)
 	else
-		-- Secret value fallback: active while health is changing/regenerating (4s window covers slow ticks)
-		currentFlags.healthNotFull = (now - state.lastHealthChange) < 4.0
+		state.healthSecret = true
+		currentFlags.healthNotFull = (not useCurves) and ((now - state.lastHealthChange) < 4.0) or false
 	end
 
-	-- Vitals: Power Not Full (Mana/Energy below %, Rage/Runic Power draining to 0)
+	-- Vitals: Power Not Full (uses native LuaCurve when secret on WoW Forever)
 	local powerType, powerToken = UnitPowerType("player")
 	local safeType = SafeNumber(powerType)
 	local safeToken = (type(powerToken) == "string" and not IsSecret(powerToken)) and powerToken or nil
+	state.powerType = safeType or 0
+	state.powerEmptyAtRest = (safeToken and EMPTY_AT_REST[safeToken]) and true or false
 	if safeType ~= nil then
 		local curP = SafeNumber(UnitPower("player", safeType))
 		local maxP = SafeNumber(UnitPowerMax("player", safeType))
-		if safeToken and EMPTY_AT_REST[safeToken] then
+		if state.powerEmptyAtRest then
 			if curP ~= nil then
+				state.powerSecret = false
 				currentFlags.powerNotFull = curP > 0
 			else
-				currentFlags.powerNotFull = (now - state.lastPowerChange) < 3.0
+				state.powerSecret = true
+				currentFlags.powerNotFull = (not useCurves) and ((now - state.lastPowerChange) < 3.0) or false
 			end
 		else
 			if curP and maxP and maxP > 0 then
+				state.powerSecret = false
 				currentFlags.powerNotFull = (curP / maxP) < (powThresh - 0.0001)
 			else
-				currentFlags.powerNotFull = (now - state.lastPowerChange) < 3.0
+				state.powerSecret = true
+				currentFlags.powerNotFull = (not useCurves) and ((now - state.lastPowerChange) < 3.0) or false
 			end
 		end
 	else
-		currentFlags.powerNotFull = (now - state.lastPowerChange) < 3.0
+		state.powerSecret = true
+		currentFlags.powerNotFull = (not useCurves) and ((now - state.lastPowerChange) < 3.0) or false
 	end
 
-	-- Vitals: Pet Health Not Full & Pet Not Happy (Hunter happiness: 1=Unhappy, 2=Content, 3=Happy)
+	-- Vitals: Pet Health Not Full (uses native LuaCurve when secret on WoW Forever) & Pet Not Happy
 	if SafeBool(UnitExists("pet")) then
 		local pHp = SafeNumber(UnitHealth("pet"))
 		local pMax = SafeNumber(UnitHealthMax("pet"))
 		if pHp and pMax and pMax > 0 then
+			state.petHealthSecret = false
 			currentFlags.petHealth = (pHp / pMax) < (hpThresh - 0.0001)
 		else
-			currentFlags.petHealth = (now - state.lastPetHealthChange) < 4.0
+			state.petHealthSecret = true
+			currentFlags.petHealth = (not useCurves) and ((now - state.lastPetHealthChange) < 4.0) or false
 		end
 		local happiness = GetPetHappiness and SafeNumber(GetPetHappiness())
 		currentFlags.petUnhappy = (happiness ~= nil and happiness < 3)
 	else
+		state.petHealthSecret = false
 		currentFlags.petHealth = false
 		currentFlags.petUnhappy = false
 	end

@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.0.4
+- **Exact Vital Thresholds on WoW Forever:** Implemented Blizzard's native `LuaCurve` API (`UnitHealthPercent` / `UnitPowerPercent`) for **Player Health**, **Player Power**, and **Pet Health** so Health % and Power % sliders work accurately even with WoW Forever secret values — ignoring minor buff casts above threshold, eliminating Pet Frame pulsing between regen ticks, preventing HP/Mana dual-regen handoff blinks, and preserving smooth fade-out from Hover, Combat, and Enemy Target.
+- **Fixed False Quest Peek on Zone Change:** Walking across a zone border no longer triggers a false Quest Tracker / Questie peek from automatic zone-filtered `QUEST_WATCH_LIST_CHANGED` refreshes (manual track/untrack and real objective progress still peek normally).
+- **Default Profile:** Set **Target of Target** to **Always** by default (matching Target Frame, Focus Frame, and Focus Target).
+
 ## v1.0.3
 - **UI Layout Preset (Groups Page):** Added a 1-click **UI Layout** selector (**Blizzard Default UI** vs. **Separated Menu & Bags (Custom UI)**) to switch Micro Menu & Bags Bar between the unified Blizzard bottom bar and a dedicated Hover-Only corner group (works automatically with Edit Mode and Bartender4).
 - **Action Bars Group Sync:** Switched the **Action Bars** default group to **Sync: Hover + Triggers** and cleared standalone Combat/Target triggers from **Micro Menu** and **Bags Bar** so they reveal cleanly with the Blizzard bottom bar and become hover-only as soon as unlinked.
