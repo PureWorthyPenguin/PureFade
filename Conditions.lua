@@ -1033,7 +1033,17 @@ function ns.EvaluateConditions(now)
 			state.petHealthSecret = true
 			currentFlags.petHealth = (not useCurves) and ((now - state.lastPetHealthChange) < 4.0) or false
 		end
-		local happiness = GetPetHappiness and SafeNumber(GetPetHappiness())
+		-- WoW Forever has no global GetPetHappiness; PetFrameHappiness:GetHappinessStats() returns 1=Unhappy, 2=Content, 3=Happy
+		local happiness = GetPetHappiness and SafeNumber(GetPetHappiness()) or nil
+		if happiness == nil then
+			local happyIcon = _G.PetFrameHappiness
+			if happyIcon and happyIcon.GetHappinessStats then
+				local ok, val = pcall(happyIcon.GetHappinessStats, happyIcon)
+				if ok then
+					happiness = SafeNumber(val)
+				end
+			end
+		end
 		currentFlags.petUnhappy = (happiness ~= nil and happiness < 3)
 	else
 		state.petHealthSecret = false

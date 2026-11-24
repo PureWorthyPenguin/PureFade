@@ -2,7 +2,7 @@
 ## Title: PureFade
 ## Notes: Lightweight UI fading addon for WoW Forever. Fades unused UI elements and reveals them on hover, combat, targeting, vitals, location, or interaction triggers.
 ## Author: WorthyPenguin
-## Version: 1.0.4
+## Version: 1.0.5
 ## Category: UI
 ## IconTexture: Interface\Icons\Spell_Magic_LesserInvisibilty
 ## AddonCompartmentFunc: PureFade_OnAddonCompartmentClick

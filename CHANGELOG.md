@@ -1,5 +1,8 @@
 # Changelog
 
+## v1.0.5
+- **Fixed Hunter Pet Happiness (`Pet Not Happy`):** Reads WoW Forever's `PetFrameHappiness:GetHappinessStats()` API so **Pet Frame** reliably stays visible whenever your hunter pet is Content (yellow) or Unhappy (red).
+
 ## v1.0.4
 - **Exact Vital Thresholds on WoW Forever:** Implemented Blizzard's native `LuaCurve` API (`UnitHealthPercent` / `UnitPowerPercent`) for **Player Health**, **Player Power**, and **Pet Health** so Health % and Power % sliders work accurately even with WoW Forever secret values — ignoring minor buff casts above threshold, eliminating Pet Frame pulsing between regen ticks, preventing HP/Mana dual-regen handoff blinks, and preserving smooth fade-out from Hover, Combat, and Enemy Target.
 - **Fixed False Quest Peek on Zone Change:** Walking across a zone border no longer triggers a false Quest Tracker / Questie peek from automatic zone-filtered `QUEST_WATCH_LIST_CHANGED` refreshes (manual track/untrack and real objective progress still peek normally).
