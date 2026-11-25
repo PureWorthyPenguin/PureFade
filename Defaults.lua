@@ -304,10 +304,17 @@ for _, el in ipairs(ns.ELEMENTS) do
 	ns.ELEMENT_BY_KEY[el.key] = el
 end
 
+-- Default orbiting angle on Minimap rim (192° sits cleanly above PureGrid's 220° button)
+ns.DEFAULT_MINIMAP_ANGLE = 192
+
 -- Build default profile table
 function ns.BuildDefaultGeneral()
 	return {
 		enabled = true,
+		showCompartmentButton = true,
+		showMinimapButton = false,
+		lockMinimapButton = false,
+		minimapAngle = ns.DEFAULT_MINIMAP_ANGLE,
 		loginBehavior = "delay", -- "delay" or "faded"
 		loginDelay = 10,         -- seconds visible on login before fading
 		fadeInTime = 0.15,       -- 0.00 (instant) to 2.00s

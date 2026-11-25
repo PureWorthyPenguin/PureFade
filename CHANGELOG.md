@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.0.6
+- **Optional Minimap Button & Toggleable Addon Compartment:** Added a zero-dependency orbiting Minimap button (hidden by default; Left-Click to Pause/Resume, Right-Click for Settings, Drag to move, Lock, and Reset Position) plus a **Show Addon Compartment Button** toggle under *General → Minimap Button & Addon Compartment*.
+- **Pure-Suite Minimap Discovery:** Generalized **Minimap Addon Buttons** discovery to automatically include `Pure*MinimapButton` frames alongside `LibDBIcon10_*`.
+
 ## v1.0.5
 - **Fixed Hunter Pet Happiness (`Pet Not Happy`):** Reads WoW Forever's `PetFrameHappiness:GetHappinessStats()` API so **Pet Frame** reliably stays visible whenever your hunter pet is Content (yellow) or Unhappy (red).
 

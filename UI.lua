@@ -1128,7 +1128,48 @@ local function BuildGeneralPage()
 		"Fades Mail, Vitals, Debuffs, Tracking, and other automatic triggers during corpse runs (hover, chat peeks, and Always Show elements still work).",
 		function() return ns.GetDB().fadeWhenDead ~= false end,
 		function(v) ns.GetDB().fadeWhenDead = v end
-	), 30, "Suppress Triggers While Dead / Ghost", "dead ghost corpse spirit mail debuff fade")
+	), 32, "Suppress Triggers While Dead / Ghost", "dead ghost corpse spirit mail debuff fade")
+
+	-- Minimap Button & Addon Compartment
+	y = y - 6
+	MakeSectionHeader(content, "Minimap Button & Addon Compartment", y)
+	y = y - 22
+
+	Add(MakeCheckbox(content, "Show Addon Compartment Button",
+		"Show PureFade inside Blizzard's Minimap Addon Compartment dropdown (enabled by default).",
+		function() return ns.GetDB().showCompartmentButton ~= false end,
+		function(v)
+			ns.GetDB().showCompartmentButton = v
+			if ns.UpdateCompartmentButton then ns.UpdateCompartmentButton() end
+		end
+	), 26, "Show Addon Compartment Button", "addon compartment minimap dropdown button hide show")
+
+	Add(MakeCheckbox(content, "Show Minimap Button",
+		"Display an optional PureFade button on the Minimap border (Left-Click: Pause/Resume, Right-Click: Open Settings, Drag: Move). Hidden by default.",
+		function() return ns.GetDB().showMinimapButton and true or false end,
+		function(v)
+			ns.GetDB().showMinimapButton = v
+			if ns.UpdateMinimapButton then ns.UpdateMinimapButton() end
+		end
+	), 26, "Show Minimap Button", "minimap button icon toggle hide show")
+
+	Add(MakeCheckbox(content, "Lock Minimap Button",
+		"Prevent dragging the Minimap button around the Minimap border.",
+		function() return ns.GetDB().lockMinimapButton and true or false end,
+		function(v) ns.GetDB().lockMinimapButton = v end
+	), 28, "Lock Minimap Button", "minimap button lock drag position")
+
+	local resetPosRow = CreateFrame("Frame", nil, content)
+	resetPosRow:SetSize(560, 26)
+	local resetPosBtn = MakeButton(resetPosRow, "Reset Minimap Position", 170, 22, function()
+		if ns.ResetMinimapButtonPosition then
+			ns.ResetMinimapButtonPosition()
+			RefreshAllPages()
+		end
+	end)
+	resetPosBtn:SetPoint("LEFT", resetPosRow, "LEFT", 0, 0)
+	AttachTooltip(resetPosBtn, "Reset Minimap Position", "Returns the Minimap button to its default position on the Minimap rim (above PureGrid's button).")
+	Add(resetPosRow, 30, "Reset Minimap Position", "minimap button reset position default angle")
 
 	content:SetHeight(math.abs(y) + 20)
 
@@ -1137,6 +1178,8 @@ local function BuildGeneralPage()
 		for _, w in ipairs(widgets) do
 			if w.Refresh then w:Refresh() end
 		end
+		if ns.UpdateMinimapButton then ns.UpdateMinimapButton() end
+		if ns.UpdateCompartmentButton then ns.UpdateCompartmentButton() end
 	end
 	canvas:SetScript("OnShow", Refresh)
 	refreshCallbacks[#refreshCallbacks + 1] = Refresh

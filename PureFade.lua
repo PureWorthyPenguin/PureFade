@@ -192,6 +192,8 @@ function ns.SetProfile(name)
 	PureFadeDB.profileKeys[GetCharKey()] = name
 	activeDB = PureFadeDB.profiles[name]
 	MergeDefaults(activeDB)
+	if ns.UpdateMinimapButton then ns.UpdateMinimapButton() end
+	if ns.UpdateCompartmentButton then ns.UpdateCompartmentButton() end
 	print("|cff66ccffPureFade:|r Switched to profile '" .. name .. "'.")
 	return true
 end
@@ -455,34 +457,97 @@ function ns.ImportProfile(encoded, requestedName)
 	return true, finalName
 end
 
--- Addon Compartment callbacks (Left-Click: Pause/Resume, Right-Click: Settings)
-function PureFade_OnAddonCompartmentClick(_, buttonName)
-	if buttonName == "RightButton" then
-		ns.OpenSettings()
+function ns.TogglePause()
+	local newState = not ns.IsPaused()
+	ns.SetPaused(newState)
+	if ns.UpdateMinimapButton then ns.UpdateMinimapButton() end
+	if newState then
+		print("|cff66ccffPureFade:|r Paused (UI restored to 100%). Left-click again or type |cffffff00/purefade toggle|r to resume.")
 	else
-		local newState = not ns.IsPaused()
-		ns.SetPaused(newState)
-		if newState then
-			print("|cff66ccffPureFade:|r Paused (UI restored to 100%). Left-click again or type |cffffff00/purefade toggle|r to resume.")
-		else
-			print("|cff66ccffPureFade:|r Resumed.")
-			ns.ForceRefresh()
-		end
+		print("|cff66ccffPureFade:|r Resumed.")
+		ns.ForceRefresh()
 	end
 end
 
-function PureFade_OnAddonCompartmentEnter(_, menuButtonFrame)
-	GameTooltip:SetOwner(menuButtonFrame, "ANCHOR_LEFT")
-	GameTooltip:SetText("PureFade", 1, 0.82, 0)
-	local status = ns.IsPaused() and "|cffff6666Paused|r" or (ns.GetDB() and ns.GetDB().enabled and "|cff66ff66Active|r" or "|cffff6666Disabled|r")
-	GameTooltip:AddLine("Status: " .. status, 1, 1, 1)
-	GameTooltip:AddLine("Left-Click: Pause / Resume", 0.8, 0.8, 0.8)
-	GameTooltip:AddLine("Right-Click: Open Settings", 0.8, 0.8, 0.8)
-	GameTooltip:Show()
+-- Addon Compartment dynamic registration (Left-Click: Pause/Resume, Right-Click: Settings)
+local compartmentData = {
+	text = "PureFade",
+	icon = "Interface\\Icons\\Spell_Magic_LesserInvisibilty",
+	registerForAnyClick = true,
+	notCheckable = true,
+	func = function(_, menuInputData)
+		local buttonName = type(menuInputData) == "table" and menuInputData.buttonName or menuInputData
+		if buttonName == "RightButton" then
+			if ns.OpenSettings then ns.OpenSettings() end
+		else
+			ns.TogglePause()
+		end
+	end,
+	funcOnEnter = function(menuButtonFrame)
+		GameTooltip:SetOwner(menuButtonFrame, "ANCHOR_LEFT")
+		GameTooltip:SetText("PureFade", 1, 0.82, 0)
+		local status = ns.IsPaused() and "|cffff6666Paused|r" or (ns.GetDB() and ns.GetDB().enabled and "|cff66ff66Active|r" or "|cffff6666Disabled|r")
+		GameTooltip:AddLine("Status: " .. status, 1, 1, 1)
+		GameTooltip:AddLine("Left-Click: Pause / Resume", 0.8, 0.8, 0.8)
+		GameTooltip:AddLine("Right-Click: Open Settings", 0.8, 0.8, 0.8)
+		GameTooltip:Show()
+	end,
+	funcOnLeave = function()
+		GameTooltip:Hide()
+	end,
+}
+
+local compartmentRegistered = false
+
+local function RemoveFromCompartment()
+	if not AddonCompartmentFrame then
+		return false
+	end
+	if AddonCompartmentFrame.UnregisterAddon then
+		AddonCompartmentFrame:UnregisterAddon(compartmentData)
+		if AddonCompartmentFrame.UpdateDisplay then
+			AddonCompartmentFrame:UpdateDisplay()
+		end
+		return true
+	end
+	local removed = false
+	for _, field in pairs(AddonCompartmentFrame) do
+		if type(field) == "table" then
+			for i = #field, 1, -1 do
+				if field[i] == compartmentData then
+					table.remove(field, i)
+					removed = true
+				end
+			end
+		end
+	end
+	if removed and AddonCompartmentFrame.UpdateDisplay then
+		AddonCompartmentFrame:UpdateDisplay()
+	end
+	return removed
 end
 
-function PureFade_OnAddonCompartmentLeave()
-	GameTooltip:Hide()
+function ns.UpdateCompartmentButton()
+	if not AddonCompartmentFrame then
+		return
+	end
+	local db = ns.GetDB and ns.GetDB()
+	local shouldShow = not db or db.showCompartmentButton ~= false
+
+	if shouldShow then
+		if not compartmentRegistered and AddonCompartmentFrame.RegisterAddon then
+			AddonCompartmentFrame:RegisterAddon(compartmentData)
+			compartmentRegistered = true
+		end
+	else
+		if compartmentRegistered then
+			if RemoveFromCompartment() then
+				compartmentRegistered = false
+			else
+				print("|cff66ccffPureFade:|r Type |cffffff00/reload|r to remove the Addon Compartment button.")
+			end
+		end
+	end
 end
 
 -- Slash command: /purefade
@@ -490,14 +555,7 @@ SLASH_PUREFADE1 = "/purefade"
 SlashCmdList["PUREFADE"] = function(msg)
 	local cmd = strtrim((msg or ""):lower())
 	if cmd == "toggle" then
-		local newState = not ns.IsPaused()
-		ns.SetPaused(newState)
-		if newState then
-			print("|cff66ccffPureFade:|r Paused (UI restored to 100%). Type |cffffff00/purefade toggle|r to resume.")
-		else
-			print("|cff66ccffPureFade:|r Resumed.")
-			ns.ForceRefresh()
-		end
+		ns.TogglePause()
 	elseif cmd:sub(1, 3) == "why" then
 		local filter = strtrim(cmd:sub(4))
 		if ns.DebugWhy then
@@ -524,6 +582,8 @@ boot:SetScript("OnEvent", function(_, event, arg1)
 			end
 		end
 	elseif event == "PLAYER_LOGIN" then
+		if ns.InitMinimapButton then ns.InitMinimapButton() end
+		if ns.UpdateCompartmentButton then ns.UpdateCompartmentButton() end
 		ns.StartLoginHold()
 		ns.StartEngine()
 	end

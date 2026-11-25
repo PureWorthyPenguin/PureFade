@@ -267,7 +267,7 @@ local function ResolveDynamic(key, list)
 			for _, child in ipairs({ mm:GetChildren() }) do
 				if IsUsableFrame(child) and child.GetName then
 					local ok, name = pcall(child.GetName, child)
-					if ok and type(name) == "string" and name:find("^LibDBIcon10_") then
+					if ok and type(name) == "string" and (name:find("^LibDBIcon10_") or name:find("^Pure.+MinimapButton$")) then
 						AddUniqueFrame(list, child, key, detach)
 					end
 				end
