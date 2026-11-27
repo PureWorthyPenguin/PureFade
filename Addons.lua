@@ -157,6 +157,38 @@ ns.SUPPORTED_ADDONS = {
 		defaultTriggers = { combat = true },
 		frames = { "DBT_Bar_1", "DBT_Bar_2" },
 	},
+	-- Dominos: individual entries following their matching Blizzard UI elements
+	{ key = "dom_bar1",   addon = "Dominos", label = "Dominos: Bar 1",             defaultMode = "follow", defaultFollow = "mainbar",   frames = { "DominosFrame1" } },
+	{ key = "dom_bar2",   addon = "Dominos", label = "Dominos: Bar 2",             defaultMode = "follow", defaultFollow = "bar2",      frames = { "DominosFrame2" } },
+	{ key = "dom_bar3",   addon = "Dominos", label = "Dominos: Bar 3",             defaultMode = "follow", defaultFollow = "bar3",      frames = { "DominosFrame3" } },
+	{ key = "dom_bar4",   addon = "Dominos", label = "Dominos: Bar 4",             defaultMode = "follow", defaultFollow = "bar4",      frames = { "DominosFrame4" } },
+	{ key = "dom_bar5",   addon = "Dominos", label = "Dominos: Bar 5",             defaultMode = "follow", defaultFollow = "bar5",      frames = { "DominosFrame5" } },
+	{ key = "dom_bar6",   addon = "Dominos", label = "Dominos: Bar 6",             defaultMode = "follow", defaultFollow = "bar6",      frames = { "DominosFrame6" } },
+	{ key = "dom_bar7",   addon = "Dominos", label = "Dominos: Bar 7",             defaultMode = "follow", defaultFollow = "bar7",      frames = { "DominosFrame7" } },
+	{ key = "dom_bar8",   addon = "Dominos", label = "Dominos: Bar 8",             defaultMode = "follow", defaultFollow = "bar8",      frames = { "DominosFrame8" } },
+	{ key = "dom_bar9",   addon = "Dominos", label = "Dominos: Bar 9",             defaultMode = "follow", defaultFollow = "bar7",      frames = { "DominosFrame9" } },
+	{ key = "dom_bar10",  addon = "Dominos", label = "Dominos: Bar 10",            defaultMode = "follow", defaultFollow = "bar8",      frames = { "DominosFrame10" } },
+	{ key = "dom_pet",    addon = "Dominos", label = "Dominos: Pet Bar",           defaultMode = "follow", defaultFollow = "petbar",    frames = { "DominosFramepet" } },
+	{ key = "dom_class",  addon = "Dominos", label = "Dominos: Class / Stance Bar",defaultMode = "follow", defaultFollow = "stancebar", frames = { "DominosFrameclass" } },
+	{ key = "dom_bags",   addon = "Dominos", label = "Dominos: Bag Bar",           defaultMode = "follow", defaultFollow = "bags",      frames = { "DominosFramebags" } },
+	{ key = "dom_menu",   addon = "Dominos", label = "Dominos: Micro Menu",        defaultMode = "follow", defaultFollow = "micro",     frames = { "DominosFramemenu" } },
+	{ key = "dom_extra",  addon = "Dominos", label = "Dominos: Extra Action Bar",  defaultMode = "follow", defaultFollow = "extrabar",  frames = { "DominosFrameextra" } },
+	{
+		key = "recount",
+		addon = "Recount",
+		label = "Recount Damage Meter",
+		defaultMode = "follow",
+		defaultFollow = "damagemeter",
+		frames = { "Recount_MainWindow" },
+	},
+	{
+		key = "skada",
+		addon = "Skada",
+		label = "Skada Damage Meter",
+		defaultMode = "follow",
+		defaultFollow = "damagemeter",
+		frames = ConcatLists({ "SkadaBarWindowSkada" }, Numbered("SkadaBarWindow", 5)),
+	},
 }
 
 ns.SUPPORTED_ADDON_BY_KEY = {}

@@ -457,6 +457,16 @@ function ns.ImportProfile(encoded, requestedName)
 	return true, finalName
 end
 
+-- Native Blizzard Keybindings (Options -> Keybindings -> PureFade)
+BINDING_HEADER_PUREFADE = "PureFade"
+BINDING_NAME_PUREFADE_PEEK_HOLD = "Hold to Peek All UI"
+
+function PureFade_SetPeekHold(active)
+	if ns.SetPeekHold then
+		ns.SetPeekHold(active and true or false)
+	end
+end
+
 function ns.TogglePause()
 	local newState = not ns.IsPaused()
 	ns.SetPaused(newState)

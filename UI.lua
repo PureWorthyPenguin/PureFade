@@ -811,6 +811,13 @@ local function CreateSettingsPage(titleText, subtitleText, resetPageKey, hideSea
 	title:SetPoint("TOPLEFT", canvas, "TOPLEFT", 16, -16)
 	title:SetText(titleText)
 
+	local profileBadge
+	if resetPageKey ~= "all" then
+		profileBadge = canvas:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+		profileBadge:SetPoint("LEFT", title, "RIGHT", 10, -1)
+		profileBadge:SetTextColor(0.75, 0.85, 1.0)
+	end
+
 	local resetBtn = MakeButton(canvas, "Reset to Defaults", 130, 22, function()
 		if ns.IsReadOnlyProfile and ns.IsReadOnlyProfile() then return end
 		local active = ns.GetActiveProfileName and ns.GetActiveProfileName() or "Custom"
@@ -841,9 +848,14 @@ local function CreateSettingsPage(titleText, subtitleText, resetPageKey, hideSea
 	local function RefreshPageChrome()
 		local ro = ns.IsReadOnlyProfile and ns.IsReadOnlyProfile() or false
 		resetBtn:SetEnabled(not ro)
+		if profileBadge then
+			local active = ns.GetActiveProfileName and ns.GetActiveProfileName() or "Default"
+			profileBadge:SetText("Profile: |cffffff00" .. active .. "|r")
+		end
 	end
 	refreshCallbacks[#refreshCallbacks + 1] = RefreshPageChrome
 	canvas:HookScript("OnShow", RefreshPageChrome)
+	RefreshPageChrome()
 
 	local scroll = CreateFrame("ScrollFrame", nil, canvas, "UIPanelScrollFrameTemplate")
 	scroll:SetPoint("TOPLEFT", divider, "BOTTOMLEFT", 0, -8)
@@ -992,10 +1004,17 @@ local function BuildGeneralPage()
 
 	Add(MakeSlider(content, "Faded Opacity", 0, 50, 1,
 		function(v) return v == 0 and "0% (Hidden)" or (v .. "%") end,
-		"Opacity of faded UI elements (0% = completely invisible, 15% = dimly visible).",
+		"Global opacity of faded UI elements (0% = completely invisible, 15% = dimly visible). Can be overridden per element inside its Triggers menu.",
 		function() return math.floor((ns.GetDB().fadedAlpha or 0) * 100 + 0.5) end,
 		function(v) ns.GetDB().fadedAlpha = v / 100 end
-	), 32, "Faded Opacity", "alpha transparency dim invisible")
+	), 28, "Faded Opacity", "alpha transparency dim invisible")
+
+	Add(MakeSlider(content, "Hover Reveal Delay", 0, 0.50, 0.05,
+		function(v) return v <= 0.001 and "Instant" or string.format("%.2fs", v) end,
+		"Optional delay before hovering reveals a faded element (e.g. 0.15s prevents quick cursor sweeps from flashing bars).",
+		function() return ns.GetDB().hoverRevealDelay or 0 end,
+		function(v) ns.GetDB().hoverRevealDelay = v end
+	), 32, "Hover Reveal Delay", "hover delay sweep brush anti accidental")
 
 	-- Universal Delays
 	y = y - 6
@@ -1128,7 +1147,142 @@ local function BuildGeneralPage()
 		"Fades Mail, Vitals, Debuffs, Tracking, and other automatic triggers during corpse runs (hover, chat peeks, and Always Show elements still work).",
 		function() return ns.GetDB().fadeWhenDead ~= false end,
 		function(v) ns.GetDB().fadeWhenDead = v end
-	), 32, "Suppress Triggers While Dead / Ghost", "dead ghost corpse spirit mail debuff fade")
+	), 28, "Suppress Triggers While Dead / Ghost", "dead ghost corpse spirit mail debuff fade")
+
+	-- Hold-to-Peek All UI keybind shortcut (jumps to Options -> Keybindings -> PureFade & flashes row)
+	local function FlashKeybindRow(rowFrame)
+		if not ns.IsUsableFrame(rowFrame) then return end
+		local overlay = rowFrame.pureFadeFlashOverlay
+		if not overlay then
+			overlay = CreateFrame("Frame", nil, rowFrame)
+			overlay:SetAllPoints(rowFrame)
+			overlay:SetFrameLevel(rowFrame:GetFrameLevel() + 10)
+			local glow = overlay:CreateTexture(nil, "OVERLAY")
+			glow:SetAllPoints(overlay)
+			glow:SetColorTexture(1.0, 0.82, 0.2, 0.45)
+			glow:SetBlendMode("ADD")
+			overlay.glow = glow
+			rowFrame.pureFadeFlashOverlay = overlay
+		end
+		overlay:Show()
+		local elapsed = 0
+		local duration = 2.2
+		overlay:SetScript("OnUpdate", function(self, dt)
+			elapsed = elapsed + dt
+			if elapsed >= duration then
+				self:Hide()
+				self:SetScript("OnUpdate", nil)
+				return
+			end
+			local wave = math.abs(math.sin((elapsed / duration) * math.pi * 2))
+			local fade = 1 - (elapsed / duration) * 0.35
+			self.glow:SetAlpha(wave * fade * 0.65)
+		end)
+	end
+
+	local function FrameContainsText(frame, targetLower)
+		if not ns.IsUsableFrame(frame) then return false end
+		local function CheckStr(s)
+			if type(s) ~= "string" or ns.IsSecret(s) then return false end
+			return s:lower():find(targetLower, 1, true) ~= nil
+		end
+		if frame.Text and frame.Text.GetText and CheckStr(frame.Text:GetText()) then return true end
+		if frame.Label and frame.Label.GetText and CheckStr(frame.Label:GetText()) then return true end
+		if frame.Button and frame.Button.Text and frame.Button.Text.GetText and CheckStr(frame.Button.Text:GetText()) then return true end
+		if frame.GetRegions then
+			for _, region in ipairs({ frame:GetRegions() }) do
+				if region and region.GetObjectType and region:GetObjectType() == "FontString" and region.GetText then
+					if CheckStr(region:GetText()) then return true end
+				end
+			end
+		end
+		return false
+	end
+
+	local function OpenKeybindingsAndFlashPeek()
+		local catID = Settings and Settings.KEYBINDINGS_CATEGORY_ID
+		if not catID and Settings and Settings.GetCategory then
+			local cat = Settings.GetCategory(KEYBINDINGS_LABEL or "Keybindings")
+			if cat and cat.GetID then catID = cat:GetID() end
+		end
+		if catID and Settings and Settings.OpenToCategory then
+			Settings.OpenToCategory(catID)
+		end
+		local function HighlightTarget()
+			pcall(function()
+				local scrollBox = SettingsPanel and SettingsPanel.Container
+					and SettingsPanel.Container.SettingsList
+					and SettingsPanel.Container.SettingsList.ScrollBox
+				if not scrollBox then return end
+				local peekLower = (BINDING_NAME_PUREFADE_PEEK_HOLD or "Hold to Peek All UI"):lower()
+				if scrollBox.ScrollToElementDataByPredicate then
+					scrollBox:ScrollToElementDataByPredicate(function(elem)
+						if type(elem) ~= "table" then return false end
+						local d = elem.data or elem
+						local name = (type(d.name) == "string" and d.name) or (type(d.categoryName) == "string" and d.categoryName) or ""
+						local nl = name:lower()
+						return nl:find(peekLower, 1, true) ~= nil or nl == "purefade"
+					end)
+				end
+				C_Timer.After(0.08, function()
+					pcall(function()
+						if not scrollBox.ForEachFrame then return end
+						local foundPeek = false
+						local headerFrame = nil
+						scrollBox:ForEachFrame(function(frame)
+							if FrameContainsText(frame, peekLower) then
+								FlashKeybindRow(frame)
+								foundPeek = true
+							elseif not headerFrame and FrameContainsText(frame, "purefade") then
+								headerFrame = frame
+							end
+						end)
+						if not foundPeek and headerFrame then
+							-- Expand PureFade category if collapsed, then flash the binding row
+							if headerFrame.Button and headerFrame.Button.Click then
+								headerFrame.Button:Click()
+							elseif headerFrame.Click then
+								headerFrame:Click()
+							end
+							FlashKeybindRow(headerFrame)
+							C_Timer.After(0.08, function()
+								pcall(function()
+									scrollBox:ForEachFrame(function(frame)
+										if FrameContainsText(frame, peekLower) then
+											FlashKeybindRow(frame)
+										end
+									end)
+								end)
+							end)
+						end
+					end)
+				end)
+			end)
+		end
+		C_Timer.After(0.12, HighlightTarget)
+	end
+
+	local peekBindRow = CreateFrame("Frame", nil, content)
+	peekBindRow:SetSize(560, 26)
+	local peekBindFS = peekBindRow:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+	peekBindFS:SetPoint("LEFT", peekBindRow, "LEFT", 0, 0)
+	peekBindFS:SetWidth(232)
+	peekBindFS:SetJustifyH("LEFT")
+
+	local peekBindBtn = MakeButton(peekBindRow, "Set Keybind", 120, 22, OpenKeybindingsAndFlashPeek)
+	peekBindBtn:SetPoint("LEFT", peekBindFS, "RIGHT", 0, 0)
+	AttachTooltip(peekBindBtn, "Open Keybindings > PureFade",
+		"Jumps straight to Options > Keybindings > PureFade and highlights 'Hold to Peek All UI' so you can bind any key or mouse button to temporarily reveal all faded UI.")
+
+	peekBindRow.Refresh = function()
+		local key1 = GetBindingKey and GetBindingKey("PUREFADE_PEEK_HOLD")
+		if key1 and key1 ~= "" then
+			peekBindFS:SetText("Hold to Peek All UI |cff66ff66(" .. key1 .. ")|r")
+		else
+			peekBindFS:SetText("Hold to Peek All UI |cff888888(Not Bound)|r")
+		end
+	end
+	Add(peekBindRow, 32, "Hold to Peek All UI Keybind", "keybind hold peek reveal all ui shortcut")
 
 	-- Minimap Button & Addon Compartment
 	y = y - 6
@@ -1181,9 +1335,39 @@ local function BuildGeneralPage()
 		if ns.UpdateMinimapButton then ns.UpdateMinimapButton() end
 		if ns.UpdateCompartmentButton then ns.UpdateCompartmentButton() end
 	end
-	canvas:SetScript("OnShow", Refresh)
+	canvas:HookScript("OnShow", Refresh)
 	refreshCallbacks[#refreshCallbacks + 1] = Refresh
 	return canvas
+end
+
+local ELEMENT_OPACITY_STEPS = { 0, 0.10, 0.20, 0.30, 0.40, 0.50 }
+
+local function AddElementOpacitySubmenu(root, cfg)
+	local label = cfg.fadedAlpha ~= nil
+		and ("Faded Opacity: " .. math.floor(cfg.fadedAlpha * 100 + 0.5) .. "%")
+		or "Faded Opacity: Global"
+	local sub = root:CreateButton(label)
+	sub:CreateRadio("Use Global Setting",
+		function() return cfg.fadedAlpha == nil end,
+		function()
+			GuardEditable()
+			cfg.fadedAlpha = nil
+			if ns.ForceRefresh then ns.ForceRefresh() end
+		end
+	)
+	for _, val in ipairs(ELEMENT_OPACITY_STEPS) do
+		local pct = math.floor(val * 100 + 0.5)
+		local optText = pct == 0 and "0% (Hidden)" or (pct .. "%")
+		sub:CreateRadio(optText,
+			function() return cfg.fadedAlpha ~= nil and math.abs(cfg.fadedAlpha - val) < 0.005 end,
+			function()
+				GuardEditable()
+				cfg.fadedAlpha = val
+				if ns.ForceRefresh then ns.ForceRefresh() end
+			end
+		)
+	end
+	root:CreateDivider()
 end
 
 --------------------------------------------------------------------------------
@@ -1444,6 +1628,7 @@ local function BuildElementsPage()
 
 			row.trigBtn:SetScript("OnClick", function(self)
 				OpenDropdownMenu(self, function(root)
+					AddElementOpacitySubmenu(root, cfg)
 					local lastSection
 					for _, t in ipairs(ns.TRIGGERS) do
 						if t.section ~= lastSection then
@@ -1513,7 +1698,7 @@ local function BuildElementsPage()
 		end)
 	end
 
-	canvas:SetScript("OnShow", RefreshList)
+	canvas:HookScript("OnShow", RefreshList)
 	refreshCallbacks[#refreshCallbacks + 1] = RefreshList
 	return canvas
 end
@@ -1846,7 +2031,7 @@ local function BuildGroupsPage()
 		content:SetHeight(math.max(1, math.abs(y) + 16))
 	end
 
-	canvas:SetScript("OnShow", RefreshGroups)
+	canvas:HookScript("OnShow", RefreshGroups)
 	refreshCallbacks[#refreshCallbacks + 1] = RefreshGroups
 	return canvas
 end
@@ -2078,7 +2263,7 @@ local function BuildProfilesPage()
 		deleteBtn:SetEnabled(not isDefault)
 	end
 
-	canvas:SetScript("OnShow", RefreshProfiles)
+	canvas:HookScript("OnShow", RefreshProfiles)
 	refreshCallbacks[#refreshCallbacks + 1] = RefreshProfiles
 	return canvas
 end
@@ -2523,6 +2708,7 @@ local function BuildAddonsPage()
 					end)
 					bar.trigBtn:SetScript("OnClick", function(self)
 						OpenDropdownMenu(self, function(root)
+							AddElementOpacitySubmenu(root, cfg)
 							local lastSection
 							for _, t in ipairs(ns.TRIGGERS) do
 								if t.section ~= lastSection then
@@ -2576,7 +2762,7 @@ local function BuildAddonsPage()
 		content:SetHeight(math.max(1, math.abs(y) + 40))
 	end
 
-	canvas:SetScript("OnShow", RefreshAddons)
+	canvas:HookScript("OnShow", RefreshAddons)
 	refreshCallbacks[#refreshCallbacks + 1] = RefreshAddons
 	return canvas
 end

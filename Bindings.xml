@@ -1,0 +1,7 @@
+<Bindings>
+	<Binding name="PUREFADE_PEEK_HOLD" category="PureFade" runOnUp="true">
+		if PureFade_SetPeekHold then
+			PureFade_SetPeekHold(keystate == "down")
+		end
+	</Binding>
+</Bindings>

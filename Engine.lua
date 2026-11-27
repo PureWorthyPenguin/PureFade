@@ -42,8 +42,10 @@ local elementFrames = {}      -- [elementKey] = { frame1, frame2, ... }
 local frameAlpha = {}         -- [frame] = current applied alpha (0..1)
 local frameElementKey = {}    -- [frame] = elementKey (first owner)
 local elementHoverUntil = {}  -- [elementKey] = timestamp
+local elementHoverStart = {}  -- [elementKey] = timestamp when cursor first entered (for hoverRevealDelay)
 local groupHoverUntil = {}    -- [groupName] = timestamp
 local paused = false
+local peekHold = false
 local pickerPreview = false
 local engineRunning = false
 local lastScanAt = 0
@@ -721,6 +723,29 @@ local function CollectAllElementKeys(db)
 	return keys
 end
 
+local function IsEditModeOpen()
+	local em = _G.EditModeManagerFrame
+	return IsUsableFrame(em) and SafeBool(em:IsShown())
+end
+
+local function IsCutsceneOrUIHidden()
+	if not (UIParent and SafeBool(UIParent:IsShown())) then
+		return true
+	end
+	if IsUsableFrame(_G.CinematicFrame) and SafeBool(_G.CinematicFrame:IsShown()) then
+		return true
+	end
+	if IsUsableFrame(_G.MovieFrame) and SafeBool(_G.MovieFrame:IsShown()) then
+		return true
+	end
+	return false
+end
+
+function ns.SetPeekHold(active)
+	peekHold = active and true or false
+	lastEvalAt = 0
+end
+
 -- Evaluate target alphas for every managed frame
 local function EvaluateTargets(now)
 	local db = ns.GetDB and ns.GetDB()
@@ -753,18 +778,21 @@ local function EvaluateTargets(now)
 		end
 	end
 
-	-- Master disabled, paused, Frame Picker preview, or Login Delay active -> show everything
-	if paused or pickerPreview or not db.enabled or ns.IsLoginHoldActive(now) then
+	-- Master disabled, paused, Hold-to-Peek, Edit Mode, Frame Picker preview, or Login Delay -> show everything
+	if paused or peekHold or pickerPreview or IsEditModeOpen() or not db.enabled or ns.IsLoginHoldActive(now) then
 		for _, f in ipairs(activeFrames) do
+			secretCurveFrames[f] = nil
 			frameTargetAlpha[f] = 1
 		end
 		return
 	end
 
 	local conds = ns.EvaluateConditions(now)
-	local mouseFocus = GetTopMouseFocus()
+	local mouselooking = IsMouselooking and SafeBool(IsMouselooking()) or false
+	local mouseFocus = mouselooking and nil or GetTopMouseFocus()
 	local hoverHold = db.mouseoverHold or 2.5
 	local hoverPad = db.mouseoverBuffer or 0
+	local hoverDelay = db.hoverRevealDelay or 0
 	local fadedAlpha = db.fadedAlpha or 0
 
 	-- QoL states
@@ -785,15 +813,33 @@ local function EvaluateTargets(now)
 		local effectiveKey = followedKey or key
 		local frames = elementFrames[key]
 		if cfg and frames and #frames > 0 then
-			-- Hover check
-			local hoveredNow = false
-			if cfg.hover ~= false then
+			-- Hover check (suppressed while rotating camera via IsMouselooking)
+			local cursorOver = false
+			if not mouselooking and cfg.hover ~= false then
 				for _, f in ipairs(frames) do
 					if IsFrameHovered(f, effectiveKey, mouseFocus, hoverPad) then
-						hoveredNow = true
+						cursorOver = true
 						break
 					end
 				end
+			end
+
+			local alreadyHovered = (elementHoverUntil[key] ~= nil and now < elementHoverUntil[key])
+				or (followedKey ~= nil and elementHoverUntil[followedKey] ~= nil and now < elementHoverUntil[followedKey])
+			local hoveredNow = false
+			if cursorOver then
+				if hoverDelay <= 0.001 or alreadyHovered then
+					hoveredNow = true
+				else
+					local startAt = elementHoverStart[key]
+					if not startAt then
+						elementHoverStart[key] = now
+					elseif (now - startAt) >= hoverDelay then
+						hoveredNow = true
+					end
+				end
+			else
+				elementHoverStart[key] = nil
 			end
 
 			if hoveredNow then
@@ -809,9 +855,7 @@ local function EvaluateTargets(now)
 				end
 			end
 
-			local isHovered = hoveredNow
-				or (elementHoverUntil[key] ~= nil and now < elementHoverUntil[key])
-				or (followedKey ~= nil and elementHoverUntil[followedKey] ~= nil and now < elementHoverUntil[followedKey])
+			local isHovered = hoveredNow or alreadyHovered
 			elemHovered[key] = isHovered
 
 			-- Trigger check (Always Show applies only to this element, never forces the rest of its group)
@@ -880,6 +924,8 @@ local function EvaluateTargets(now)
 				end
 			end
 
+			local elemFadedAlpha = (cfg.fadedAlpha ~= nil) and cfg.fadedAlpha or fadedAlpha
+
 			-- Check if BuffFrame is showing ONLY because of buffChanged and/or buffExpiring (for in-place single-buff mode)
 			local isBuffPeekActive = cfg.triggers and (
 				(cfg.triggers.buffChanged and conds.buffChanged)
@@ -899,7 +945,7 @@ local function EvaluateTargets(now)
 				if not nonPeekShow then
 					local includeExpiring = (cfg.triggers.buffExpiring and conds.buffExpiring) and true or false
 					local activeIcons = ns.GetActivePeekBuffIcons and ns.GetActivePeekBuffIcons(now, db.fadeOutTime, includeExpiring)
-					if activeIcons and ApplySingleBuffPeek(activeIcons, fadedAlpha) then
+					if activeIcons and ApplySingleBuffPeek(activeIcons, elemFadedAlpha) then
 						buffOnlyPeeking = true
 						activeBuffPeekIncludeExpiring = includeExpiring
 					end
@@ -927,24 +973,24 @@ local function EvaluateTargets(now)
 					end
 				end
 				if not frameShow and ns.NeedsSecretVitalCurve and ns.NeedsSecretVitalCurve(cfg.triggers, db) then
-					secretCurveFrames[f] = cfg.triggers
-					frameTargetAlpha[f] = fadedAlpha
+					secretCurveFrames[f] = { triggers = cfg.triggers, fadedAlpha = elemFadedAlpha }
+					frameTargetAlpha[f] = elemFadedAlpha
 					local curA = frameAlpha[f]
 					if curA == nil then
-						curA = fadedAlpha
+						curA = elemFadedAlpha
 						frameAlpha[f] = curA
 					end
-					if math.abs(curA - fadedAlpha) <= 0.001 then
-						ns.ApplySecretVitalAlpha(f, cfg.triggers, db, now, nil)
+					if math.abs(curA - elemFadedAlpha) <= 0.001 then
+						ns.ApplySecretVitalAlpha(f, cfg.triggers, db, now, nil, elemFadedAlpha)
 					end
 				else
 					if secretCurveFrames[f] then
 						secretCurveFrames[f] = nil
 						if frameShow then
-							frameAlpha[f] = fadedAlpha
+							frameAlpha[f] = elemFadedAlpha
 						end
 					end
-					frameTargetAlpha[f] = frameShow and 1.0 or fadedAlpha
+					frameTargetAlpha[f] = frameShow and 1.0 or elemFadedAlpha
 				end
 			end
 		end
@@ -969,7 +1015,7 @@ end
 local driver = CreateFrame("Frame")
 
 local function OnUpdate(_, elapsed)
-	if not engineRunning then
+	if not engineRunning or IsCutsceneOrUIHidden() then
 		return
 	end
 	local now = GetTime()
@@ -1048,7 +1094,7 @@ local function OnUpdate(_, elapsed)
 				end
 				if secretTrigs and ns.ApplySecretVitalAlpha then
 					frameAlpha[f] = nextAlpha
-					ns.ApplySecretVitalAlpha(f, secretTrigs, db, now, nextAlpha)
+					ns.ApplySecretVitalAlpha(f, secretTrigs.triggers, db, now, nextAlpha, secretTrigs.fadedAlpha)
 				else
 					ApplyFrameAlpha(f, nextAlpha, frameElementKey[f])
 				end
@@ -1076,7 +1122,58 @@ local function OnUpdate(_, elapsed)
 	end
 end
 
+local tooltipHooked = false
+
+local function IsInsideFadedManagedFrame(startFrame)
+	if not IsUsableFrame(startFrame) then
+		return false
+	end
+	local startAlpha = startFrame.GetAlpha and SafeNumber(startFrame:GetAlpha())
+	local cur = startFrame
+	local guard = 0
+	while cur and guard < 12 do
+		if frameElementKey[cur] then
+			local a = frameAlpha[cur]
+			if a == nil and cur.GetAlpha then
+				a = SafeNumber(cur:GetAlpha())
+			end
+			return (a ~= nil and a < 0.2) or (startAlpha ~= nil and startAlpha < 0.2)
+		end
+		if not IsUsableFrame(cur) or not cur.GetParent then
+			break
+		end
+		cur = cur:GetParent()
+		guard = guard + 1
+	end
+	return false
+end
+
+local function InstallTooltipGuard()
+	if tooltipHooked or not GameTooltip or not GameTooltip.HookScript then
+		return
+	end
+	tooltipHooked = true
+	GameTooltip:HookScript("OnShow", function(self)
+		if not engineRunning or paused or peekHold or pickerPreview or IsEditModeOpen() then
+			return
+		end
+		local owner = self.GetOwner and self:GetOwner()
+		if IsInsideFadedManagedFrame(owner) then
+			self:Hide()
+			return
+		end
+		-- Some Blizzard widgets (e.g. XP / Reputation bar) anchor GameTooltip to UIParent instead of themselves
+		if owner == UIParent or not IsUsableFrame(owner) then
+			local focus = GetTopMouseFocus()
+			if IsInsideFadedManagedFrame(focus) then
+				self:Hide()
+			end
+		end
+	end)
+end
+
 function ns.StartEngine()
+	InstallTooltipGuard()
 	ns.DiscoverFrames()
 	local now = GetTime()
 	lastScanAt = now

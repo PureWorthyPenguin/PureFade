@@ -898,14 +898,14 @@ function ns.NeedsSecretVitalCurve(triggers, db)
 		or false
 end
 
-function ns.ApplySecretVitalAlpha(frame, triggers, db, now, floorOverride)
+function ns.ApplySecretVitalAlpha(frame, triggers, db, now, floorOverride, elemFadedAlpha)
 	if not ns.NeedsSecretVitalCurve(triggers, db) then
 		return false
 	end
 	local wantHealth = triggers.healthNotFull and state.healthSecret
 	local wantPower = triggers.powerNotFull and state.powerSecret
 	local wantPet = triggers.petHealth and state.petHealthSecret and SafeBool(UnitExists("pet"))
-	local fadedAlpha = (db and db.fadedAlpha) or 0
+	local fadedAlpha = (elemFadedAlpha ~= nil) and elemFadedAlpha or ((db and db.fadedAlpha) or 0)
 	local useDynamic = (floorOverride ~= nil and math.abs(floorOverride - fadedAlpha) > 0.001)
 	local floor = useDynamic and floorOverride or fadedAlpha
 
@@ -1075,6 +1075,7 @@ function ns.EvaluateConditions(now)
 
 	currentFlags.mounted = SafeBool(IsMounted and IsMounted())
 	currentFlags.onTaxi = SafeBool(UnitOnTaxi and UnitOnTaxi("player"))
+	currentFlags.inVehicle = SafeBool(UnitInVehicle and UnitInVehicle("player")) or SafeBool(HasVehicleActionBar and HasVehicleActionBar())
 	currentFlags.questChanged = now < state.questPeekUntil
 	currentFlags.chatMessage = ns.IsAnyChatPeeking(now)
 

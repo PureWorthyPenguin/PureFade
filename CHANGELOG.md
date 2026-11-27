@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.1.0
+- **Hold to Peek All UI Keybind:** Added a native Blizzard keybinding under *Options → Keybindings → PureFade* (`Hold to Peek All UI`) to temporarily reveal all faded UI while held, plus a **Set Keybind** shortcut button under *General* that jumps straight to it and highlights the row.
+- **Edit Mode Auto-Pause & Cutscene / `Alt+Z` Respect:** Automatically restores all faded UI to 100% while Blizzard Edit Mode is open and short-circuits fading during cutscenes or `Alt+Z`.
+- **Per-Element Faded Opacity:** Override the global faded opacity (`Use Global` or `0%–50%`) per element or custom-rules addon directly inside its **Triggers** dropdown.
+- **Hover Reveal Delay & Camera-Drag Guard:** Added an optional **Hover Reveal Delay** slider (`0.00s–0.50s`, default `Instant`) to prevent accidental cursor sweeps from flashing bars, suppressed hover triggers while rotating the camera (`IsMouselooking()`), and hid tooltips for still-faded elements (`< 20%` alpha, including XP/Reputation bars and dimmed buffs).
+- **`In Vehicle` Trigger:** Added a new Context trigger (`In Vehicle`), enabled by default for **Action Bar 1 (Main)** and **Action Bar Art**.
+- **Active Profile Header Badge:** Added a live `Profile: <name>` indicator beside the title on General, Elements, Groups, and Addons pages.
+- **Expanded 3rd-Party Addon Support:** Added zero-CPU built-in support for **Dominos** (per-bar), **Recount**, and **Skada**.
+- **Minimap Button Spacing:** Adjusted PureFade's default Minimap button angle to **`173°`** for even spacing alongside PureFish (`192°`) and PureGrid (`211°`).
+
 ## v1.0.6
 - **Optional Minimap Button & Toggleable Addon Compartment:** Added a zero-dependency orbiting Minimap button (hidden by default; Left-Click to Pause/Resume, Right-Click for Settings, Drag to move, Lock, and Reset Position) plus a **Show Addon Compartment Button** toggle under *General → Minimap Button & Addon Compartment*.
 - **Pure-Suite Minimap Discovery:** Generalized **Minimap Addon Buttons** discovery to automatically include `Pure*MinimapButton` frames alongside `LibDBIcon10_*`.

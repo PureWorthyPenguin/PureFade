@@ -77,6 +77,7 @@ ns.TRIGGERS = {
 	{ key = "casting",       label = "Casting / Channeling",section = "Context", tip = "Show while casting or channeling a spell." },
 	{ key = "mounted",       label = "Mounted",            section = "Context",  tip = "Show while mounted." },
 	{ key = "onTaxi",        label = "On Flight Path",     section = "Context",  tip = "Show while on a flight path (taxi)." },
+	{ key = "inVehicle",     label = "In Vehicle",         section = "Context",  tip = "Show while in a vehicle or possessing a unit (e.g. quest vehicles, cannons)." },
 	-- Minimap & World
 	{ key = "tracking",      label = "Tracking Active",    section = "Minimap",  tip = "Show while a gathering or creature tracking ability is active (Find Minerals, Find Herbs, Track Beasts, etc.)." },
 	{ key = "unreadMail",    label = "Unread Mail",        section = "Minimap",  tip = "Show while you have unread mail." },
@@ -110,10 +111,10 @@ ns.ELEMENTS = {
 	-- Action Bars
 	{ key = "mainbar",     label = "Action Bar 1 (Main)",         category = "bars", defaultGroup = "Action Bars",
 		frames = { "MainMenuBar", "MainActionBar", "MainMenuBarVehicleLeaveButton" },
-		defaultTriggers = { combat = true, enemyTarget = true } },
+		defaultTriggers = { combat = true, enemyTarget = true, inVehicle = true } },
 	{ key = "barart",      label = "Action Bar Art",              category = "bars", defaultGroup = "Action Bars",
 		resolver = "barart",
-		defaultTriggers = { combat = true, enemyTarget = true } },
+		defaultTriggers = { combat = true, enemyTarget = true, inVehicle = true } },
 	{ key = "bar2",        label = "Action Bar 2 (Bottom Left)",  category = "bars", defaultGroup = "Action Bars",
 		frames = { "MultiBarBottomLeft" },
 		defaultTriggers = { combat = true, enemyTarget = true } },
@@ -304,8 +305,8 @@ for _, el in ipairs(ns.ELEMENTS) do
 	ns.ELEMENT_BY_KEY[el.key] = el
 end
 
--- Default orbiting angle on Minimap rim (192° sits cleanly above PureGrid's 220° button)
-ns.DEFAULT_MINIMAP_ANGLE = 192
+-- Default orbiting angle on Minimap rim (173° — evenly spaced 19° above PureFish 192° & PureGrid 211°)
+ns.DEFAULT_MINIMAP_ANGLE = 173
 
 -- Build default profile table
 function ns.BuildDefaultGeneral()
@@ -321,6 +322,7 @@ function ns.BuildDefaultGeneral()
 		combatFadeInTime = 0.15, -- 0.00 (instant) to 2.00s (used when entering combat)
 		fadeOutTime = 0.80,      -- 0.00 (instant) to 5.00s
 		fadedAlpha = 0.00,       -- 0.00 (invisible) to 0.50 (dimmed)
+		hoverRevealDelay = 0.00, -- 0.00 (instant) to 0.50s delay before hover reveals a faded element
 		mouseoverHold = 2.5,     -- seconds visible after mouse leaves
 		mouseoverBuffer = 25,    -- UI units (~px) of extra hover reach around each element
 		combatFadeOutDelay = 10, -- seconds visible after combat ends
